@@ -24,7 +24,7 @@ const About = () => {
           <div>
             <h3 className="text-lg font-pangolin font-bold text-black">Sia Skateson</h3>
             <p className="text-gray-800 leading-relaxed">
-              Born in Belgrade in 2014, Sia Paradinović (alias Sia Skateson) is a bubbling creative force. 
+              Born in 2014, Sia Skateson is a bubbling creative force. 
               From the age of six, she actively explores painting, digital illustration, animation, and sculpture. 
               In 2023, with her parents' support, she launched her first NFT collection on the Solana blockchain, 
               "Gummy Buddy". This series of digital avatars allowed her to build a global community of collectors. 
