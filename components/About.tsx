@@ -3,11 +3,11 @@ import React from 'react';
 
 const About = () => {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* About the Project */}
-      <div className="bg-gradient-to-r from-yellow-200 to-orange-200 p-6 rounded-3xl shadow-lg border-2 border-black transform rotate-1">
-        <h2 className="text-2xl font-pangolin font-bold mb-4 text-black">About the Project</h2>
-        <p className="text-gray-800 leading-relaxed">
+      <div className="bg-gradient-to-r from-yellow-200 to-orange-200 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-lg border-2 border-black transform rotate-0.5 sm:rotate-1">
+        <h2 className="text-xl sm:text-2xl font-pangolin font-bold mb-3 sm:mb-4 text-black">About the Project</h2>
+        <p className="text-gray-800 text-sm sm:text-base leading-relaxed">
           Oinkonomics is more than just an NFT collection; it's a social and artistic experience. 
           The project aims to create a playful mirror of Solana's financial ecosystem, where wallet 
           value doesn't determine paid access, but rather a unique visual identity. There's no sale, 
@@ -18,12 +18,12 @@ const About = () => {
       </div>
 
       {/* About the Creators */}
-      <div className="bg-gradient-to-r from-pink-200 to-purple-200 p-6 rounded-3xl shadow-lg border-2 border-black transform -rotate-1">
-        <h2 className="text-2xl font-pangolin font-bold mb-4 text-black">About the Creators</h2>
-        <div className="space-y-4">
+      <div className="bg-gradient-to-r from-pink-200 to-purple-200 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-lg border-2 border-black transform -rotate-0.5 sm:-rotate-1">
+        <h2 className="text-xl sm:text-2xl font-pangolin font-bold mb-3 sm:mb-4 text-black">About the Creators</h2>
+        <div className="space-y-3 sm:space-y-4">
           <div>
-            <h3 className="text-lg font-pangolin font-bold text-black">Sia Skateson</h3>
-            <p className="text-gray-800 leading-relaxed">
+            <h3 className="text-base sm:text-lg font-pangolin font-bold text-black">Sia Skateson</h3>
+            <p className="text-gray-800 text-sm sm:text-base leading-relaxed">
               Born in Belgrade in 2014, Sia Paradinović (alias Sia Skateson) is a bubbling creative force. 
               From the age of six, she actively explores painting, digital illustration, animation, and sculpture. 
               In 2023, with her parents' support, she launched her first NFT collection on the Solana blockchain, 

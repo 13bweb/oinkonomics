@@ -22,17 +22,17 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="mt-20 border-t-2 border-black bg-white">
-      <div className="max-w-6xl mx-auto px-6 md:px-10 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-3">
-          <span className="text-xl font-black">OinkonomicsSol</span>
-          <span className="text-xs text-black/60">© {new Date().getFullYear()}</span>
+    <footer className="mt-12 sm:mt-20 border-t-2 border-black bg-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-10 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="text-lg sm:text-xl font-black">OinkonomicsSol</span>
+          <span className="text-[10px] sm:text-xs text-black/60">© {new Date().getFullYear()}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           {links.map(l => (
-            <a key={l.name} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border-2 border-black px-3 py-2 shadow-hard hover:-translate-y-0.5 transition-transform">
+            <a key={l.name} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl border-2 border-black px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-hard hover:-translate-y-0.5 transition-transform">
               <span className="text-black/80">{l.svg}</span>
-              <span className="text-sm font-semibold">{l.name}</span>
+              <span className="text-xs sm:text-sm font-semibold">{l.name}</span>
             </a>
           ))}
         </div>

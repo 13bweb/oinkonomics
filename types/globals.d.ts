@@ -11,7 +11,8 @@ export type WalletTier = 'TOO_POOR' | 'POOR' | 'MID' | 'RICH';
 
 export interface WalletTierInfo {
   tier: WalletTier;
-  balance: number;
+  balance: number; // SOL balance
+  balanceUSD: number; // USD-converted value
   minThreshold: number;
   maxThreshold: number | null;
   nftRange: readonly [number, number] | null;

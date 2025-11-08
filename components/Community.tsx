@@ -37,22 +37,22 @@ export default function Community() {
   ];
 
   return (
-    <section className="px-6 md:px-10 py-16">
+    <section className="px-4 sm:px-6 md:px-10 py-10 sm:py-16">
       <div className="max-w-6xl mx-auto">
-        <div className="rounded-[28px] border-4 border-black bg-gradient-to-tr from-pink-200 via-yellow-200 to-sky-200 shadow-hard p-8 md:p-12 relative overflow-hidden">
-          <div className="absolute -top-4 -left-4 w-16 h-16 bg-yellow-300 rounded-full border-2 border-black shadow-hard" />
-          <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-pink-300 rounded-2xl border-2 border-black shadow-hard" />
-          <div className="absolute top-8 -right-3 w-10 h-10 bg-sky-300 rounded-lg border-2 border-black shadow-hard" />
+        <div className="rounded-[20px] sm:rounded-[28px] border-3 sm:border-4 border-black bg-gradient-to-tr from-pink-200 via-yellow-200 to-sky-200 shadow-hard p-6 sm:p-8 md:p-12 relative overflow-hidden">
+          <div className="absolute -top-3 sm:-top-4 -left-3 sm:-left-4 w-12 sm:w-16 h-12 sm:h-16 bg-yellow-300 rounded-full border-2 border-black shadow-hard" />
+          <div className="absolute -bottom-4 sm:-bottom-6 -right-4 sm:-right-6 w-16 sm:w-24 h-16 sm:h-24 bg-pink-300 rounded-xl sm:rounded-2xl border-2 border-black shadow-hard" />
+          <div className="absolute top-6 sm:top-8 -right-2 sm:-right-3 w-8 sm:w-10 h-8 sm:h-10 bg-sky-300 rounded-lg border-2 border-black shadow-hard" />
 
-          <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
+          <div className="relative z-10 grid md:grid-cols-2 gap-6 sm:gap-8 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-black drop-shadow-title">Join the Oinkonomics community</h2>
-              <p className="mt-3 text-lg text-gray-800">Follow updates, art leaks, drops, and giveaways. Join the community and be part of the conversation.</p>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black drop-shadow-title">Join the Oinkonomics community</h2>
+              <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-800">Follow updates, art leaks, drops, and giveaways. Join the community and be part of the conversation.</p>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {socials.map((s) => (
                 <a key={s.name} href={s.href} target="_blank" rel="noreferrer"
-                   className={`inline-flex items-center gap-2 rounded-2xl border-2 border-black px-4 py-3 font-semibold text-white shadow-hard bg-gradient-to-br ${s.color} hover:-translate-y-0.5 transition-transform`}>
+                   className={`inline-flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl border-2 border-black px-3 sm:px-4 py-2.5 sm:py-3 font-semibold text-white shadow-hard bg-gradient-to-br ${s.color} hover:-translate-y-0.5 transition-transform text-sm sm:text-base`}>
                   {s.icon}
                   <span>{s.name}</span>
                 </a>

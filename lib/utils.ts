@@ -42,16 +42,32 @@ export const TIER_THRESHOLDS = {
 // Token de la collection (devnet)
 export const COLLECTION_TOKEN = "9JCdYQL53tH97ef7zZBTYWYtLAcWSQVMocs2AjqjD6a4"
 
-// Prix approximatif SOL en USD (vous pouvez le récupérer d'une API)
-const SOL_PRICE_USD = 180 // Mettez à jour selon le prix actuel
+// Récupère le prix SOL en USD via CoinGecko (fallback à 0 si échec)
+export async function fetchSOLPriceUSD(): Promise<number> {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+    if (!res.ok) {
+      console.warn('CoinGecko returned non-ok status for SOL price');
+      return 0;
+    }
+    const j = await res.json();
+    const price = j?.solana?.usd ?? 0;
+    return typeof price === 'number' ? price : 0;
+  } catch (error) {
+    console.warn('Failed to fetch SOL price from CoinGecko:', error);
+    return 0;
+  }
+}
 
-export function getWalletTier(balanceSOL: number): WalletTierInfo {
-  const balanceUSD = balanceSOL * SOL_PRICE_USD
+export function getWalletTier(balanceSOL: number, solPriceUSD: number): WalletTierInfo {
+  const balanceUSD = balanceSOL * (solPriceUSD || 0);
 
+  // balance is expressed in SOL, balanceUSD added separately in the returned object
   if (balanceUSD < TIER_THRESHOLDS.TOO_POOR.max) {
     return {
       tier: 'TOO_POOR',
-      balance: balanceUSD,
+      balance: balanceSOL,
+      balanceUSD,
       minThreshold: TIER_THRESHOLDS.TOO_POOR.min,
       maxThreshold: TIER_THRESHOLDS.TOO_POOR.max,
       nftRange: TIER_THRESHOLDS.TOO_POOR.nftRange
@@ -60,7 +76,8 @@ export function getWalletTier(balanceSOL: number): WalletTierInfo {
     const tier = 'POOR';
     return {
       tier,
-      balance: balanceUSD,
+      balance: balanceSOL,
+      balanceUSD,
       minThreshold: TIER_THRESHOLDS.POOR.min,
       maxThreshold: TIER_THRESHOLDS.POOR.max,
       nftRange: TIER_THRESHOLDS.POOR.nftRange,
@@ -70,7 +87,8 @@ export function getWalletTier(balanceSOL: number): WalletTierInfo {
     const tier = 'MID';
     return {
       tier,
-      balance: balanceUSD,
+      balance: balanceSOL,
+      balanceUSD,
       minThreshold: TIER_THRESHOLDS.MID.min,
       maxThreshold: TIER_THRESHOLDS.MID.max,
       nftRange: TIER_THRESHOLDS.MID.nftRange,
@@ -80,7 +98,8 @@ export function getWalletTier(balanceSOL: number): WalletTierInfo {
     const tier = 'RICH';
     return {
       tier,
-      balance: balanceUSD,
+      balance: balanceSOL,
+      balanceUSD,
       minThreshold: TIER_THRESHOLDS.RICH.min,
       maxThreshold: TIER_THRESHOLDS.RICH.max,
       nftRange: TIER_THRESHOLDS.RICH.nftRange,
@@ -108,7 +127,8 @@ export async function getWalletBalance(walletAddress: string): Promise<number> {
 export async function verifyWalletTier(walletAddress: string): Promise<WalletTierInfo> {
   try {
     const balanceSOL = await getWalletBalance(walletAddress);
-    return getWalletTier(balanceSOL);
+    const solPriceUSD = await fetchSOLPriceUSD();
+    return getWalletTier(balanceSOL, solPriceUSD);
   } catch (error) {
     console.error('Erreur lors de la vérification du tier:', error);
     throw error;

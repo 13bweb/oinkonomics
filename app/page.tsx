@@ -2,7 +2,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import toast, { Toaster } from "react-hot-toast";
-import WalletConnect from "../components/WalletConnect";
+// WalletConnect is now rendered inside the Header component
 import About from "../components/About";
 import ImageSwitcher from "../components/ImageSwitcher";
 import TiersExplainer from "../components/TiersExplainer";
@@ -23,7 +23,7 @@ type VerifyResponse = {
 };
 
 export default function HomePage() {
-  const { publicKey, wallet } = useWallet();
+  const { publicKey, wallet, connected, connect } = useWallet();
   const [loading, setLoading] = useState(false);
   const [minting, setMinting] = useState(false);
   const [data, setData] = useState<VerifyResponse | null>(null);
@@ -32,7 +32,24 @@ export default function HomePage() {
   const walletAddress = useMemo(() => publicKey?.toBase58() ?? null, [publicKey]);
 
   const handleScan = useCallback(async () => {
-    if (!walletAddress) {
+    let finalWalletAddress = walletAddress;
+
+    if (!finalWalletAddress) {
+      // If not connected, try to trigger the wallet connect flow (useful when user clicks Scan)
+      if (typeof connect === 'function') {
+        try {
+          await connect();
+        } catch (e) {
+          toast.error('Failed to connect wallet');
+          return;
+        }
+      }
+
+      // Try to read public key from the adapter after connect
+      finalWalletAddress = wallet?.adapter?.publicKey?.toBase58() ?? null;
+    }
+
+    if (!finalWalletAddress) {
       toast.error("Connect your wallet first");
       return;
     }
@@ -44,7 +61,7 @@ export default function HomePage() {
       const res = await fetch("/api/verify-tier", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress }),
+    body: JSON.stringify({ walletAddress: finalWalletAddress }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -115,7 +132,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen relative overflow-hidden">
       <Toaster position="top-center" />
-      <WalletConnect />
+      {/* WalletConnect now lives in the Header component */}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-white/40 dark:via-white/5 dark:to-white/10" />
 
@@ -148,11 +165,16 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <button
                 onClick={handleScan}
-                disabled={!walletAddress || loading}
-                className="btn-primary group disabled:opacity-60"
+                disabled={loading}
+                className="relative btn-primary group disabled:opacity-60 min-w-[180px]"
               >
-                <span className="relative z-10">{loading ? "Scanning…" : "Scan my wallet"}</span>
+                <span className="relative z-10">
+                  {loading ? "Scanning…" : connected ? "Scan my wallet" : "Connect & Scan"}
+                </span>
                 <span className="btn-shine" />
+                {!connected && (
+                  <div className="absolute -right-2 -top-2 w-4 h-4 bg-green-400 rounded-full animate-ping" />
+                )}
               </button>
 
               {data && (

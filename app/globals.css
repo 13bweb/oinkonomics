@@ -18,52 +18,193 @@
 @layer utilities {
   .shadow-hard { box-shadow: 6px 6px 0px rgba(0,0,0,1); }
   .tilt { transform: rotate(-0.5deg); }
-  .drop-shadow-title { text-shadow: 2px 2px 0 #00000020; }
-
-  .btn-primary {
-    @apply relative overflow-hidden rounded-2xl border-2 border-black px-6 py-3 font-pangolin font-bold text-black;
-    background: linear-gradient(135deg, #FF8AA8 0%, #FFD36E 100%);
-    box-shadow: 6px 6px 0px rgba(0,0,0,1);
-    transition: transform .15s ease, box-shadow .15s ease;
+  
+  .shape-star {
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
   }
-  .btn-primary:hover { transform: translate(-2px,-2px) rotate(0.5deg); box-shadow: 10px 10px 0 rgba(0,0,0,1); }
-  .btn-primary:active { transform: translate(0,0); box-shadow: 6px 6px 0 rgba(0,0,0,1); }
-
-  .btn-dark {
-    @apply rounded-xl border-2 border-black px-5 py-2.5 font-pangolin font-bold text-white;
-    background: #111827;
-    box-shadow: 4px 4px 0px rgba(0,0,0,1);
-    transition: transform .15s ease, box-shadow .15s ease;
+  
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 8s ease infinite;
   }
-  .btn-dark:hover { transform: translate(-2px,-2px); box-shadow: 8px 8px 0 rgba(0,0,0,1); }
-
-  .btn-disabled {
-    @apply rounded-xl border-2 border-black px-5 py-2.5 font-pangolin font-bold text-gray-500 cursor-not-allowed;
-    background: #9ca3af;
-    box-shadow: 4px 4px 0px rgba(0,0,0,1);
+  
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
-
-  .btn-shine {
-    position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.4) 40%, transparent 70%);
-    transform: translateX(-100%);
-    animation: shine 2s ease-in-out infinite;
+  
+  .animate-sparkle {
+    animation: sparkle 2s ease-in-out infinite;
   }
-
-  @keyframes shine { 0% { transform: translateX(-100%);} 60% { transform: translateX(120%);} 100% { transform: translateX(120%);} }
-
-  @keyframes marquee { 0% { transform: translateX(-100%);} 100% { transform: translateX(300%);} }
-  .animate-marquee { animation: marquee 1.8s linear infinite; }
-
-  @keyframes scan {
-    0%, 100% { filter: hue-rotate(0deg) brightness(1); }
-    50% { filter: hue-rotate(15deg) brightness(1.05); }
+  
+  @keyframes sparkle {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+    50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
   }
-  .animate-scan { animation: scan 3s ease-in-out infinite; }
+}
 
-  @keyframes float { 0%,100% { transform: translateY(0) rotate(0.5deg);} 50% { transform: translateY(-6px) rotate(-0.5deg);} }
-  .animate-float { animation: float 3.5s ease-in-out infinite; }
-  .animate-float-delayed { animation: float 4.2s ease-in-out 0.4s infinite; }
-  .animate-float-slow { animation: float 5s ease-in-out 0.8s infinite; }
+/* Mobile-optimized wallet modal styles */
+.wallet-adapter-modal-wrapper {
+  position: fixed !important;
+  max-width: calc(100vw - 32px) !important;
+  min-width: 320px !important;
+  width: 95% !important;
+  border-radius: 16px !important;
+  max-height: 100vh !important;
+  margin: 16px !important;
+}
+
+.wallet-adapter-modal-button-close {
+  padding: 8px !important;
+}
+
+.wallet-adapter-modal-title {
+  font-size: 20px !important;
+  margin: 0 0 12px !important;
+}
+
+.wallet-adapter-modal-list {
+  margin: 0 0 12px !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 60vh !important;
+  padding: 0 16px !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button {
+  font-size: 16px !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  height: auto !important;
+  margin-bottom: 8px !important;
+}
+
+.wallet-adapter-modal-list-more {
+  font-size: 14px !important;
+  padding: 8px 16px !important;
+  border-radius: 12px !important;
+  height: auto !important;
+}
+
+/* Improve touch targets */
+.wallet-adapter-button-trigger,
+.wallet-adapter-modal-list-more,
+.wallet-adapter-modal-button-close {
+  min-height: 44px !important;
+  min-width: 44px !important;
+}
+
+/* Improve modal backdrop for mobile */
+.wallet-adapter-modal-overlay {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+.drop-shadow-title { 
+  text-shadow: 2px 2px 0 #00000020;
+}
+
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 2px solid black;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Pangolin', cursive;
+  font-weight: bold;
+  color: black;
+  background: linear-gradient(135deg, #FF8AA8 0%, #FFD36E 100%);
+  box-shadow: 6px 6px 0px rgba(0,0,0,1);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.btn-dark {
+  border-radius: 0.75rem;
+  border: 2px solid black;
+  padding: 0.625rem 1.25rem;
+  font-family: 'Pangolin', cursive;
+  font-weight: bold;
+  color: white;
+  background: #111827;
+  box-shadow: 4px 4px 0px rgba(0,0,0,1);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.btn-disabled {
+  border-radius: 0.75rem;
+  border: 2px solid black;
+  padding: 0.625rem 1.25rem;
+  font-family: 'Pangolin', cursive;
+  font-weight: bold;
+  color: #6b7280;
+  cursor: not-allowed;
+  background: #9ca3af;
+  box-shadow: 4px 4px 0px rgba(0,0,0,1);
+}
+
+.btn-primary:hover {
+  transform: translate(-2px,-2px) rotate(0.5deg);
+  box-shadow: 10px 10px 0 rgba(0,0,0,1);
+}
+
+.btn-primary:active {
+  transform: translate(0,0);
+  box-shadow: 6px 6px 0 rgba(0,0,0,1);
+}
+
+.btn-dark:hover {
+  transform: translate(-2px,-2px);
+  box-shadow: 8px 8px 0 rgba(0,0,0,1);
+}
+
+.btn-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.4) 40%, transparent 70%);
+  transform: translateX(-100%);
+  animation: shine 2s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  60% { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+.animate-marquee {
+  animation: marquee 1.8s linear infinite;
+}
+
+@keyframes scan {
+  0%, 100% { filter: hue-rotate(0deg) brightness(1); }
+  50% { filter: hue-rotate(15deg) brightness(1.05); }
+}
+
+.animate-scan {
+  animation: scan 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0.5deg); }
+  50% { transform: translateY(-6px) rotate(-0.5deg); }
+}
+
+.animate-float {
+  animation: float 3.5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 4.2s ease-in-out 0.4s infinite;
+}
+
+.animate-float-slow {
+  animation: float 5s ease-in-out 0.8s infinite;
 }
 

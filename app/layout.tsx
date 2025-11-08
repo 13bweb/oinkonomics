@@ -1,13 +1,16 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { clusterApiUrl } from '@solana/web3.js';
-import './globals.css';
-import '@solana/wallet-adapter-react-ui/styles.css';
+import { clusterApiUrl, Connection } from '@solana/web3.js';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import Footer from '../components/Footer';
 import { Toaster } from 'react-hot-toast';
+
+// Import styles
+import './globals.css';
+import '@solana/wallet-adapter-react-ui/styles.css';
 
 export default function RootLayout({
   children,
@@ -16,10 +19,29 @@ export default function RootLayout({
 }) {
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => {
-    return process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network);
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network);
+    console.log('Using RPC endpoint:', rpcUrl);
+    return rpcUrl;
   }, [network]);
 
-  const wallets = useMemo(() => [], [network]);
+  // Force reconnect on network change
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const connection = new Connection(endpoint);
+        await connection.getVersion();
+        console.log('Connected to Solana network:', network);
+      } catch (error) {
+        console.error('Failed to connect to Solana network:', error);
+      }
+    };
+    checkConnection();
+  }, [endpoint, network]);
+
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ], [network]);
 
   return (
     <html lang="en">

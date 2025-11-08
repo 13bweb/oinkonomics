@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       walletAddress,
       tier: tierInfo.tier,
-      balance: tierInfo.balance,
-      balanceUSD: Math.round(tierInfo.balance * 100) / 100,
+      balance: Math.round(tierInfo.balance * 1000000) / 1000000, // SOL with micro precision
+      balanceUSD: Math.round((tierInfo.balanceUSD ?? 0) * 100) / 100,
       minThreshold: tierInfo.minThreshold,
       maxThreshold: tierInfo.maxThreshold,
       nftRange: tierInfo.nftRange,
