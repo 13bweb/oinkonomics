@@ -2,13 +2,49 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import React, { useEffect, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { isMobile } from '../lib/utils'; // Assurez-vous que ce chemin est correct
 
 const WalletConnect = () => {
   const [mounted, setMounted] = useState(false);
-  
+  const [onMobile, setOnMobile] = useState(false);
+  const { wallet, connect, connected } = useWallet();
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+    setOnMobile(isMobile());
+    // Déclenche la connexion automatique si on est dans le navigateur Phantom ou Solflare
+    if (isMobile() && (window.navigator.userAgent.includes('Phantom') || window.navigator.userAgent.includes('Solflare'))) {
+      if (wallet && !connected) {
+        connect();
+      }
+    }
+  }, [wallet, connected, connect]);
+
+  const getPhantomDeeplink = () => {
+    const params = new URLSearchParams({
+      dapp_encryption_public_key: "FFTLr4uWg5HdYpvgtEnxtzMQWHEoFjWVWiPQZ7Wxvsfm",
+      cluster: "mainnet-beta", // ou "devnet"
+      app_url: "https://oinkonomics.vercel.app/",
+      redirect_link: window.location.href,
+    });
+    return `https://phantom.app/ul/v1/connect?${params.toString()}`;
+  };
+
+  const getSolflareDeeplink = () => {
+    const params = new URLSearchParams({
+      ref: "https://oinkonomics.vercel.app/",
+      redirect_link: window.location.href,
+    });
+    return `https://solflare.com/ul/v1/connect?${params.toString()}`;
+  };
+
+  const getBackpackDeeplink = () => {
+    return `backpack://browser?url=${encodeURIComponent(window.location.href)}`;
+  };
+
+  const getGlowDeeplink = () => {
+    return `glow://browser?url=${encodeURIComponent(window.location.href)}`;
+  };
 
   if (!mounted) {
     return (
@@ -17,6 +53,25 @@ const WalletConnect = () => {
           className="px-4 py-2 rounded-lg bg-gray-200 border-2 border-black"
           style={{ minWidth: '180px', minHeight: '40px' }}
         />
+      </div>
+    );
+  }
+
+  if (onMobile && !wallet && !connected) {
+    return (
+      <div className="flex flex-col space-y-2">
+        <a href={getPhantomDeeplink()} className="text-center px-4 py-2 rounded-lg bg-purple-500 text-white border-2 border-black">
+          Open in Phantom
+        </a>
+        <a href={getSolflareDeeplink()} className="text-center px-4 py-2 rounded-lg bg-yellow-500 text-white border-2 border-black">
+          Open in Solflare
+        </a>
+        <a href={getBackpackDeeplink()} className="text-center px-4 py-2 rounded-lg bg-blue-500 text-white border-2 border-black">
+          Open in Backpack
+        </a>
+        <a href={getGlowDeeplink()} className="text-center px-4 py-2 rounded-lg bg-pink-500 text-white border-2 border-black">
+          Open in Glow
+        </a>
       </div>
     );
   }
