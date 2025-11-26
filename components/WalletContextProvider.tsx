@@ -17,9 +17,7 @@ import {
     SolongWalletAdapter,
     TokenPocketWalletAdapter,
     TokenaryWalletAdapter,
-    SafePalWalletAdapter,
-    BackpackWalletAdapter,
-    GlowWalletAdapter
+    SafePalWalletAdapter
 } from '@solana/wallet-adapter-wallets';
 import { WalletConnectWalletAdapter } from '@solana/wallet-adapter-walletconnect';
 import { 
@@ -52,8 +50,6 @@ const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) 
         }),
         new PhantomWalletAdapter(),
         new SolflareWalletAdapter(),
-        new BackpackWalletAdapter(),
-        new GlowWalletAdapter(),
         new WalletConnectWalletAdapter({
             network: network,
             options: {
