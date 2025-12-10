@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useMemo, useState } from "react";
-import { useWallet } from "@jup-ag/wallet-adapter";
+import { useUnifiedWallet, useUnifiedWalletContext } from "@jup-ag/wallet-adapter";
 import toast, { Toaster } from "react-hot-toast";
 import About from "../components/About";
 import ImageSwitcher from "../components/ImageSwitcher";
@@ -23,7 +23,8 @@ type VerifyResponse = {
 };
 
 export default function HomePage() {
-  const { publicKey, wallet, connected } = useWallet();
+  const { publicKey, wallet, connected, connect, connecting } = useUnifiedWallet();
+  const { setShowModal } = useUnifiedWalletContext();
   const [loading, setLoading] = useState(false);
   const [minting, setMinting] = useState(false);
   const [data, setData] = useState<VerifyResponse | null>(null);
@@ -47,10 +48,47 @@ export default function HomePage() {
   const walletAddress = useMemo(() => publicKey?.toBase58() ?? null, [publicKey]);
 
   const handleScan = useCallback(async () => {
-    const finalWalletAddress = walletAddress ?? wallet?.adapter?.publicKey?.toBase58() ?? null;
+    let finalWalletAddress = walletAddress ?? wallet?.adapter?.publicKey?.toBase58() ?? null;
 
     if (!finalWalletAddress) {
-      toast.error("Connect your wallet with the Unified Wallet Kit");
+      if (!wallet?.adapter) {
+        setShowModal(true);
+        toast.error("Open the Unified Wallet button to connect first");
+        return;
+      }
+
+      try {
+        if (!wallet.adapter.connected && typeof connect === "function") {
+          await connect();
+        }
+
+        if (!wallet.adapter.publicKey) {
+          finalWalletAddress = await new Promise<string | null>((resolve, reject) => {
+            const start = Date.now();
+            const timer = window.setInterval(() => {
+              const key = wallet.adapter?.publicKey?.toBase58?.() ?? null;
+              if (key) {
+                window.clearInterval(timer);
+                resolve(key);
+              }
+              if (Date.now() - start > 8000) {
+                window.clearInterval(timer);
+                reject(new Error("Wallet did not share a public key"));
+              }
+            }, 150);
+          });
+        } else {
+          finalWalletAddress = wallet.adapter.publicKey.toBase58();
+        }
+      } catch (e: any) {
+        console.error("[wallet] connect failed", e);
+        toast.error(e?.message || "Failed to finalize wallet connection");
+        return;
+      }
+    }
+
+    if (!finalWalletAddress) {
+      toast.error(connecting ? "Wallet connection in progress…" : "Connect your wallet with the Unified Wallet Kit");
       return;
     }
     setLoading(true);
@@ -78,7 +116,7 @@ export default function HomePage() {
       setLoading(false);
       toast.dismiss(t);
     }
-  }, [walletAddress, wallet]);
+  }, [walletAddress, wallet, connect, setShowModal, connecting]);
 
   const handleMint = useCallback(async () => {
     if (!wallet?.adapter || !data) return;
