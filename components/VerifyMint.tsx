@@ -73,9 +73,13 @@ const VerifyMint: React.FC = () => {
       return;
     }
 
-    // VRAIE Candy Machine unique qui gère toute la collection Oinkonomics 
-    // La logique de tier se base sur le numéro NFT assigné (0-99 POOR, 100-199 MID, 200-299 RICH)
-    const CANDY_MACHINE_ID = "8HTSVL3fNTg8CugR8veRGVEyLhz5CBbkW2T4m54zdTAn";
+    // Récupérer la Candy Machine ID depuis l'environnement pour le tier
+    const candyMachineId = tierInfo.candyMachineId || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR;
+
+    if (!candyMachineId) {
+      toast.error("Configuration Candy Machine manquante");
+      return;
+    }
 
     setStatus("loading");
 
@@ -83,10 +87,10 @@ const VerifyMint: React.FC = () => {
       console.log('🎯 VerifyMint - Tentative de mint RÉEL:', {
         tier: tierInfo.tier,
         nftNumber: tierInfo.nftNumber,
-        candyMachine: CANDY_MACHINE_ID
+        candyMachine: candyMachineId
       });
 
-      const result = await mintNFT(wallet.adapter, CANDY_MACHINE_ID);
+      const result = await mintNFT(wallet.adapter, candyMachineId);
 
       if (result.success) {
         toast.success(result.message || `🎉 NFT #${tierInfo.nftNumber} minté !`);
@@ -206,10 +210,10 @@ const VerifyMint: React.FC = () => {
                 ) : (
                   <div className="text-center mb-4">
                     <p className="text-lg font-pangolin text-gray-700 mb-2">
-                      💰 Mint coût : <strong>0.01 SOL</strong> (~$1.8)
+                      💰 Mint coût : <strong>0.022 SOL</strong> (~$4)
                     </p>
                     <button onClick={handleMint} className={`blob-button ${getTierColor(tierInfo.tier)} text-black font-pangolin font-bold text-xl px-8 py-4`}>
-                      <span className="relative z-10">🐷 Minter NFT #{tierInfo.nftNumber} (0.01 SOL) 🐷</span>
+                      <span className="relative z-10">🐷 Minter NFT #{tierInfo.nftNumber} (0.022 SOL) 🐷</span>
                     </button>
                   </div>
                 )}

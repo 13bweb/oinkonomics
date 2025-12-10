@@ -1,11 +1,11 @@
 "use client";
-import React, { useCallback, useMemo, useState } from "react";
 import { useUnifiedWallet, useUnifiedWalletContext } from "@jup-ag/wallet-adapter";
+import { useCallback, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import About from "../components/About";
+import Community from "../components/Community";
 import ImageSwitcher from "../components/ImageSwitcher";
 import TiersExplainer from "../components/TiersExplainer";
-import Community from "../components/Community";
 import WalletConnect from "../components/WalletConnect";
 import { getCandyMachineIdForTier, mintNFT } from "../lib/utils";
 
@@ -80,9 +80,10 @@ export default function HomePage() {
         } else {
           finalWalletAddress = wallet.adapter.publicKey.toBase58();
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("[wallet] connect failed", e);
-        toast.error(e?.message || "Failed to finalize wallet connection");
+        const errorMessage = e instanceof Error ? e.message : "Failed to finalize wallet connection";
+        toast.error(errorMessage);
         return;
       }
     }
@@ -108,8 +109,8 @@ export default function HomePage() {
       const j: VerifyResponse = await res.json();
       setData(j);
       toast.success(`You are ${j.tier} • $${j.balanceUSD.toLocaleString()}`);
-    } catch (e: any) {
-      const msg = e?.message || "Scan failed";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Scan failed";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -146,9 +147,10 @@ export default function HomePage() {
       } else {
         throw new Error(res.error || 'Échec du mint');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('❌ Erreur mint:', e);
-      toast.error(`❌ Échec du mint: ${e?.message || "Erreur inconnue"}`);
+      const errorMessage = e instanceof Error ? e.message : "Erreur inconnue";
+      toast.error(`❌ Échec du mint: ${errorMessage}`);
     } finally {
       setMinting(false);
       toast.dismiss(t);
@@ -203,9 +205,9 @@ export default function HomePage() {
             )}
             <ul className="text-gray-900 text-base md:text-lg space-y-1">
               <li><span className="font-semibold text-red-600">TOO_POOR</span>: Less than $10 (No NFT)</li>
-              <li><span className="font-semibold text-yellow-600">POOR</span>: $10 – $1,000 (NFT #1-100)</li>
-              <li><span className="font-semibold text-blue-600">MID</span>: $1,000 – $10,000 (NFT #100-200)</li>
-              <li><span className="font-semibold text-purple-600">RICH</span>: $10,000+ (NFT #200-300)</li>
+              <li><span className="font-semibold text-yellow-600">POOR</span>: $10 – $1,000 (NFT #1-1000)</li>
+              <li><span className="font-semibold text-blue-600">MID</span>: $1,000 – $10,000 (NFT #1001-2000)</li>
+              <li><span className="font-semibold text-purple-600">RICH</span>: $10,000+ (NFT #2001-3000)</li>
             </ul>
 
             <div className="pt-2">
@@ -266,9 +268,9 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-4 gap-6">
           {[
             { t: "TOO_POOR", d: "😱 HOW ARE YOU THAT POOR?! Get at least $10!", c: "from-red-300 to-red-200", nft: "No NFT" },
-            { t: "POOR", d: "Playful, gritty, and hungry for more. Mint NFT #1-100", c: "from-rose-200 to-amber-100", nft: "#1-100" },
-            { t: "MID", d: "Balanced, confident, and on the rise. Mint NFT #100-200", c: "from-sky-200 to-emerald-100", nft: "#100-200" },
-            { t: "RICH", d: "Bold, radiant, and unmistakable. Mint NFT #200-300", c: "from-fuchsia-200 to-cyan-100", nft: "#200-300" },
+            { t: "POOR", d: "Playful, gritty, and hungry for more. Mint NFT #1-1000", c: "from-rose-200 to-amber-100", nft: "#1-1000" },
+            { t: "MID", d: "Balanced, confident, and on the rise. Mint NFT #1001-2000", c: "from-sky-200 to-emerald-100", nft: "#1001-2000" },
+            { t: "RICH", d: "Bold, radiant, and unmistakable. Mint NFT #2001-3000", c: "from-fuchsia-200 to-cyan-100", nft: "#2001-3000" },
           ].map((x) => (
             <div key={x.t} className={`rounded-3xl border-2 border-black p-6 bg-gradient-to-br ${x.c} shadow-hard tilt transition-transform`}>
               <div className="flex items-center justify-between">
@@ -308,4 +310,3 @@ export default function HomePage() {
     </main>
   );
 }
-

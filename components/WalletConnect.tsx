@@ -28,13 +28,42 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
     if (connecting && isMobile) {
       toast.loading('Connexion au wallet...', {
         id: 'wallet-connecting',
-        duration: 10000,
+        duration: 15000, // Augmenté pour laisser plus de temps sur mobile
         position: 'bottom-center',
       });
     } else {
       toast.dismiss('wallet-connecting');
     }
   }, [connecting, isMobile]);
+
+  // Aide supplémentaire pour mobile si pas de wallet connecté après un délai
+  useEffect(() => {
+    if (isMobile && !connected && !connecting && mounted) {
+      const timer = setTimeout(() => {
+        // Vérifier si un wallet est disponible
+        const hasWallet = typeof window !== 'undefined' && (
+          window.solana?.isPhantom ||
+          window.solflare?.isSolflare ||
+          window.trustWallet?.solana
+        );
+
+        if (!hasWallet) {
+          toast('💡 Sur mobile, ouvrez cette page depuis l\'application Phantom ou Solflare', {
+            id: 'mobile-wallet-hint',
+            duration: 8000,
+            position: 'bottom-center',
+            icon: '💡',
+            style: {
+              background: '#3b82f6',
+              color: '#fff',
+            },
+          });
+        }
+      }, 3000); // Attendre 3 secondes avant d'afficher l'aide
+
+      return () => clearTimeout(timer);
+    }
+  }, [isMobile, connected, connecting, mounted]);
 
   const UnifiedWalletButtonComponent = useMemo(() => {
     // Cast avoids React 19 promise-based typing issues shipping with the adapter
@@ -61,7 +90,7 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
           <div className="absolute -top-1 -left-2 sm:-top-1.5 sm:-left-3 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-yellow-400 rounded-full opacity-80 animate-bounce hidden sm:block" />
           <div className="absolute -top-0.5 -right-1.5 sm:-top-1 sm:-right-2 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-pink-400 rounded-full opacity-80 animate-pulse hidden sm:block" />
           <div className="absolute -bottom-0.5 -left-1.5 sm:-bottom-1 sm:-left-2 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-blue-400 rounded-full opacity-80 animate-bounce hidden sm:block" />
-          <div className="absolute -bottom-1 -right-2 sm:-bottom-1.5 sm:-right-3 w 2 sm:w-2.5 h-2 sm:h-2.5 bg-green-400 rounded-full opacity-80 animate-pulse hidden sm:block" />
+          <div className="absolute -bottom-1 -right-2 sm:-bottom-1.5 sm:-right-3 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-green-400 rounded-full opacity-80 animate-pulse hidden sm:block" />
         </>
       )}
 
@@ -71,11 +100,16 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
         currentUserClassName="wallet-adapter-button-trigger"
       />
 
-      {/* Message d'aide mobile */}
+      {/* Message d'aide mobile amélioré */}
       {isMobile && !connected && !connecting && (
-        <p className="text-xs text-gray-600 dark:text-gray-400 text-center mt-2 px-2">
-          📱 Installez Phantom, Solflare ou Trust Wallet
-        </p>
+        <div className="mt-2 space-y-1">
+          <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-2">
+            📱 Pour connecter sur mobile :
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-500 text-center px-2">
+            Ouvrez cette page depuis l'app Phantom ou Solflare, ou utilisez le bouton ci-dessus
+          </p>
+        </div>
       )}
 
       {/* Indicateur de connexion */}
@@ -89,4 +123,3 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
 };
 
 export default WalletConnect;
-

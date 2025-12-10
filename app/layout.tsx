@@ -1,18 +1,18 @@
 'use client';
 import React from 'react';
-import WalletContextProvider from '../components/WalletContextProvider';
+import { Toaster } from 'react-hot-toast';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
-import { Toaster } from 'react-hot-toast';
+import WalletContextProvider from '../components/WalletContextProvider';
 
 // Import styles
-import './globals.css';
 import 'jupiverse-kit/dist/index.css';
+import './globals.css';
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   // Load Eruda debug console on mobile
   React.useEffect(() => {
@@ -22,9 +22,7 @@ export default function RootLayout({
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/eruda';
         script.onload = () => {
-          // @ts-ignore
           if (window.eruda) {
-            // @ts-ignore
             window.eruda.init();
             console.log('🔍 Eruda Debug Console activée - Cliquez sur l\'icône en bas à droite');
           }
@@ -68,5 +66,5 @@ export default function RootLayout({
         </WalletContextProvider>
       </body>
     </html>
-  )
+  );
 }

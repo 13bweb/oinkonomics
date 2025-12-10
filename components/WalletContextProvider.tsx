@@ -56,9 +56,9 @@ const WalletNotificationHandler: FC = () => {
 };
 
 const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
-	const network = WalletAdapterNetwork.Devnet;
+	const network = WalletAdapterNetwork.Mainnet;
 	const endpoint = useMemo(() => process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network), [network]);
-	const env = network === WalletAdapterNetwork.Devnet ? 'devnet' : 'mainnet-beta';
+	const env = network === WalletAdapterNetwork.Mainnet ? 'mainnet-beta' : 'devnet';
 
 	// Détection mobile
 	const isMobile = useMemo(() => {

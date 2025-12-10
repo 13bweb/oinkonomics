@@ -1,7 +1,5 @@
 "use client";
 
-import React from "react";
-import Image from "next/image";
 
 export default function TiersExplainer() {
   const tiers = [
@@ -10,24 +8,21 @@ export default function TiersExplainer() {
       title: "POOR",
       range: "< $1,000",
       blurb: "Playful, gritty, and hungry. Entry tier for beginners and degen explorers.",
-      gradient: "from-rose-200 to-amber-100",
-      pigImage: "/images/poor-pig.png"
+      gradient: "from-rose-200 to-amber-100"
     },
     {
       key: "MID",
       title: "MID",
       range: "$1,000 – $10,000",
       blurb: "Balanced and climbing. Comfortable with DeFi and building momentum.",
-      gradient: "from-sky-200 to-emerald-100",
-      pigImage: "/images/mid-pig.png"
+      gradient: "from-sky-200 to-emerald-100"
     },
     {
       key: "RICH",
       title: "RICH",
       range: "> $10,000",
       blurb: "Bold and radiant. Power users with diversified bags and on-chain presence.",
-      gradient: "from-fuchsia-200 to-cyan-100",
-      pigImage: "/images/rich-pig.png"
+      gradient: "from-fuchsia-200 to-cyan-100"
     },
   ];
 
@@ -42,9 +37,11 @@ export default function TiersExplainer() {
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {tiers.map((t) => (
             <div key={t.key} className={`rounded-2xl sm:rounded-3xl border-2 border-black p-4 sm:p-6 bg-gradient-to-br ${t.gradient} shadow-hard tilt hover:translate-y-[-2px] transition-transform duration-200`}>
-                            <div className="flex items-center mb-3 sm:mb-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-black shadow-hard bg-white overflow-hidden">
-                  <Image src={t.pigImage} alt={t.title} width={48} height={48} className="w-full h-full object-cover" />
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-black shadow-hard bg-white overflow-hidden flex items-center justify-center">
+                  <span className="text-2xl sm:text-3xl">
+                    {t.key === "POOR" ? "🐷" : t.key === "MID" ? "🐽" : "🐗"}
+                  </span>
                 </div>
                 <div className="ml-3 sm:ml-4">
                   <h3 className="font-bold text-lg sm:text-xl">{t.title}</h3>
