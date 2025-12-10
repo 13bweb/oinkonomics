@@ -75,41 +75,6 @@
   }
 }
 
-/* Mobile-optimized wallet modal styles */
-@media (max-width: 640px) {
-  .wallet-adapter-modal {
-    align-items: flex-end !important;
-    padding: 0 !important;
-    z-index: 9999 !important;
-  }
-  .wallet-adapter-modal-overlay {
-    background: rgba(0, 0, 0, 0.5) !important;
-    backdrop-filter: blur(4px) !important;
-  }
-  .wallet-adapter-modal-wrapper {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    top: auto !important;
-    transform: none !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    margin: 0 !important;
-    border-radius: 24px 24px 0 0 !important;
-    animation: slideUp 0.3s ease-out !important;
-    max-height: 85vh !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-  
-  .wallet-adapter-button-trigger {
-    font-size: 14px !important;
-    padding: 10px 16px !important;
-    border-width: 3px !important;
-    min-width: 120px !important;
-  }
-}
 
 .wallet-adapter-modal-button-close {
   padding: 8px !important;
@@ -131,7 +96,6 @@
 
 .wallet-adapter-modal-list {
   margin: 0 0 12px !important;
-  -webkit-overflow-scrolling: touch !important;
   max-height: 60vh !important;
   padding: 0 16px !important;
 }
@@ -162,8 +126,8 @@
 /* Improve modal backdrop for mobile */
 .wallet-adapter-modal-overlay {
   background: rgba(0, 0, 0, 0.6) !important;
-  backdrop-filter: blur(4px) !important;
   -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 .drop-shadow-title { 

@@ -23,7 +23,7 @@ type VerifyResponse = {
 };
 
 export default function HomePage() {
-  const { publicKey, wallet, connected, connect } = useWallet();
+  const { publicKey, wallet, connected } = useWallet();
   const [loading, setLoading] = useState(false);
   const [minting, setMinting] = useState(false);
   const [data, setData] = useState<VerifyResponse | null>(null);
@@ -47,25 +47,10 @@ export default function HomePage() {
   const walletAddress = useMemo(() => publicKey?.toBase58() ?? null, [publicKey]);
 
   const handleScan = useCallback(async () => {
-    let finalWalletAddress = walletAddress;
+    const finalWalletAddress = walletAddress ?? wallet?.adapter?.publicKey?.toBase58() ?? null;
 
     if (!finalWalletAddress) {
-      // If not connected, try to trigger the wallet connect flow (useful when user clicks Scan)
-      if (typeof connect === 'function') {
-        try {
-          await connect();
-        } catch (e) {
-          toast.error('Failed to connect wallet');
-          return;
-        }
-      }
-
-      // Try to read public key from the adapter after connect
-      finalWalletAddress = wallet?.adapter?.publicKey?.toBase58() ?? null;
-    }
-
-    if (!finalWalletAddress) {
-      toast.error("Connect your wallet first");
+      toast.error("Connect your wallet with the Unified Wallet Kit");
       return;
     }
     setLoading(true);
@@ -93,7 +78,7 @@ export default function HomePage() {
       setLoading(false);
       toast.dismiss(t);
     }
-  }, [walletAddress, wallet, connect]);
+  }, [walletAddress, wallet]);
 
   const handleMint = useCallback(async () => {
     if (!wallet?.adapter || !data) return;
@@ -196,12 +181,9 @@ export default function HomePage() {
                 className="relative btn-primary group disabled:opacity-60 min-w-[180px]"
               >
                 <span className="relative z-10">
-                  {loading ? "Scanning…" : connected ? "Scan my wallet" : "Connect & Scan"}
+                  {loading ? "Scanning…" : "Scan my wallet"}
                 </span>
                 <span className="btn-shine" />
-                {!connected && (
-                  <div className="absolute -right-2 -top-2 w-4 h-4 bg-green-400 rounded-full animate-ping" />
-                )}
               </button>
 
               {data && (

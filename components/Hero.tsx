@@ -30,19 +30,8 @@ const Hero: React.FC = () => {
         </p>
 
         <div className="flex flex-col items-center gap-6">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <button
-              onClick={() => {
-                const phantomButton = document.querySelector('.wallet-adapter-button') as HTMLButtonElement;
-                if (phantomButton) phantomButton.click();
-              }}
-              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-yellow-500 text-white font-bold rounded-xl shadow-lg hover:scale-105 transition-all border-2 border-black"
-            >
-              Scan my wallet
-            </button>
-            <div className="relative w-auto inline-block">
-              <WalletConnect variant="compact" />
-            </div>
+          <div className="relative w-auto inline-block">
+            <WalletConnect variant="compact" />
           </div>
           
           <div className="mx-auto max-w-[280px] sm:max-w-md md:max-w-2xl relative">
