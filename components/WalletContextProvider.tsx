@@ -1,33 +1,9 @@
 'use client';
 
 import React, { FC, useMemo } from 'react';
-import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
+import { UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl } from '@solana/web3.js';
-import {
-	PhantomWalletAdapter,
-	SolflareWalletAdapter,
-	TorusWalletAdapter,
-	LedgerWalletAdapter,
-	MathWalletAdapter,
-	Coin98WalletAdapter,
-	CoinbaseWalletAdapter,
-	TrustWalletAdapter,
-	SolongWalletAdapter,
-	TokenPocketWalletAdapter,
-	TokenaryWalletAdapter,
-	SafePalWalletAdapter
-} from '@solana/wallet-adapter-wallets';
-import { WalletConnectWalletAdapter } from '@solana/wallet-adapter-walletconnect';
-import {
-	SolanaMobileWalletAdapter,
-	createDefaultAuthorizationResultCache,
-	createDefaultAddressSelector,
-	createDefaultWalletNotFoundHandler
-} from '@solana-mobile/wallet-adapter-mobile';
-
-require('@solana/wallet-adapter-react-ui/styles.css');
 
 const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
 	const network = WalletAdapterNetwork.Devnet;
@@ -36,52 +12,40 @@ const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) 
 		return rpcUrl;
 	}, [network]);
 
-	const wallets = useMemo(() => [
-		new SolanaMobileWalletAdapter({
-			addressSelector: createDefaultAddressSelector(),
-			appIdentity: {
-				name: 'Oinkonomics',
-				uri: 'https://oinkonomics.vercel.app/',
-				icon: '/favicon.ico'
-			},
-			authorizationResultCache: createDefaultAuthorizationResultCache(),
-			cluster: network,
-			onWalletNotFound: createDefaultWalletNotFoundHandler()
-		}),
-		new PhantomWalletAdapter(),
-		new SolflareWalletAdapter(),
-		new WalletConnectWalletAdapter({
-			network: network,
-			options: {
-				projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+	return (
+		<UnifiedWalletProvider
+			wallets={[]}
+			config={{
+				env: network === WalletAdapterNetwork.Devnet ? 'devnet' : 'mainnet-beta',
+				autoConnect: true,
+				theme: 'dark',
+				lang: 'fr',
 				metadata: {
 					name: 'Oinkonomics',
-					description: 'Oinkonomics NFT Mint',
+					description: 'Oinkonomics NFT Mint - Application mobile Solana avec connexion unifiée',
 					url: 'https://oinkonomics.vercel.app/',
-					icons: ['https://oinkonomics.vercel.app/favicon.ico']
-				}
-			}
-		}),
-		new TorusWalletAdapter(),
-		new LedgerWalletAdapter(),
-		new MathWalletAdapter(),
-		new Coin98WalletAdapter(),
-		new CoinbaseWalletAdapter(),
-		new TrustWalletAdapter(),
-		new SolongWalletAdapter(),
-		new TokenPocketWalletAdapter(),
-		new TokenaryWalletAdapter(),
-		new SafePalWalletAdapter()
-	], [network]);
-
-	return (
-		<ConnectionProvider endpoint={endpoint}>
-			<WalletProvider wallets={wallets} autoConnect>
-				<WalletModalProvider>
-					{children}
-				</WalletModalProvider>
-			</WalletProvider>
-		</ConnectionProvider>
+					iconUrls: ['https://oinkonomics.vercel.app/favicon.ico'],
+				},
+				notificationCallback: {
+					onConnect: () => {
+						console.log('[Wallet] Connecté');
+						// Toast notification handled by components
+					},
+					onConnecting: () => {
+						console.log('[Wallet] Connexion en cours...');
+					},
+					onDisconnect: () => {
+						console.log('[Wallet] Déconnecté');
+						// Toast notification handled by components
+					},
+					onNotInstalled: () => {
+						console.log('[Wallet] Wallet non installé');
+					},
+				},
+			}}
+		>
+			{children}
+		</UnifiedWalletProvider>
 	);
 };
 

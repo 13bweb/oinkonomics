@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useMemo, useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@jup-ag/wallet-adapter";
 import toast, { Toaster } from "react-hot-toast";
 import About from "../components/About";
 import ImageSwitcher from "../components/ImageSwitcher";
@@ -36,10 +36,10 @@ export default function HomePage() {
   const explorerClusterParam = rpcUrl.includes("devnet")
     ? "?cluster=devnet"
     : rpcUrl.includes("testnet")
-    ? "?cluster=testnet"
-    : rpcUrl.includes("mainnet")
-    ? "?cluster=mainnet-beta"
-    : "";
+      ? "?cluster=testnet"
+      : rpcUrl.includes("mainnet")
+        ? "?cluster=mainnet-beta"
+        : "";
   const explorerUrl = collectionMint
     ? `${explorerBase}/${collectionMint}${explorerClusterParam}`
     : "";
@@ -97,16 +97,16 @@ export default function HomePage() {
 
   const handleMint = useCallback(async () => {
     if (!wallet?.adapter || !data) return;
-    
+
     // Empêcher le mint pour TOO_POOR
     if (data.tier === "TOO_POOR") {
       toast.error("😱 You need at least $10 to mint! Come back when you're less poor!");
       return;
     }
-    
+
     setMinting(true);
     const t = toast.loading(`Minting NFT #${data.nftNumber}…`);
-    
+
     try {
       const candyMachineId = getCandyMachineIdForTier(data.tier);
 
@@ -114,9 +114,9 @@ export default function HomePage() {
         throw new Error(`Missing Candy Machine ID for tier ${data.tier}`);
       }
       console.log('🎯 Tentative de mint:', { tier: data.tier, nftNumber: data.nftNumber, candyMachineId });
-      
+
       const res = await mintNFT(wallet.adapter, candyMachineId);
-      
+
       if (res.success) {
         toast.success(res.message || `🎉 NFT #${data.nftNumber} minté avec succès !`);
         console.log('✅ Mint réussi:', res);
@@ -250,7 +250,7 @@ export default function HomePage() {
             { t: "MID", d: "Balanced, confident, and on the rise. Mint NFT #100-200", c: "from-sky-200 to-emerald-100", nft: "#100-200" },
             { t: "RICH", d: "Bold, radiant, and unmistakable. Mint NFT #200-300", c: "from-fuchsia-200 to-cyan-100", nft: "#200-300" },
           ].map((x) => (
-            <div key={x.t} className={`rounded-3xl border-2 border-black p-6 bg-gradient-to-br ${x.c} shadow-hard tilt transition-transform` }>
+            <div key={x.t} className={`rounded-3xl border-2 border-black p-6 bg-gradient-to-br ${x.c} shadow-hard tilt transition-transform`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold">{x.t}</h3>
                 <span className="text-xs uppercase tracking-widest">Tier</span>
@@ -263,8 +263,8 @@ export default function HomePage() {
                   disabled={minting || data.tier === "TOO_POOR"}
                   className={`mt-5 ${data.tier === "TOO_POOR" ? "btn-disabled" : "btn-dark"}`}
                 >
-                  {data.tier === "TOO_POOR" 
-                    ? "❌ NO MINT FOR YOU!" 
+                  {data.tier === "TOO_POOR"
+                    ? "❌ NO MINT FOR YOU!"
                     : minting ? "Minting…" : `Mint NFT #${data.nftNumber}`
                   }
                 </button>

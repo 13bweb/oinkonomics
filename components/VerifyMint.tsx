@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@jup-ag/wallet-adapter";
 import { toast } from "react-hot-toast";
 import { mintNFT } from "../lib/utils";
 
@@ -61,7 +61,7 @@ const VerifyMint: React.FC = () => {
     }
   };
 
-    const handleMint = async () => {
+  const handleMint = async () => {
     if (!wallet?.adapter || !tierInfo) {
       toast.error("Wallet or tier info not available");
       return;
@@ -80,14 +80,14 @@ const VerifyMint: React.FC = () => {
     setStatus("loading");
 
     try {
-      console.log('🎯 VerifyMint - Tentative de mint RÉEL:', { 
-        tier: tierInfo.tier, 
+      console.log('🎯 VerifyMint - Tentative de mint RÉEL:', {
+        tier: tierInfo.tier,
         nftNumber: tierInfo.nftNumber,
-        candyMachine: CANDY_MACHINE_ID 
+        candyMachine: CANDY_MACHINE_ID
       });
-      
+
       const result = await mintNFT(wallet.adapter, CANDY_MACHINE_ID);
-      
+
       if (result.success) {
         toast.success(result.message || `🎉 NFT #${tierInfo.nftNumber} minté !`);
         setStatus("verified");
@@ -174,7 +174,7 @@ const VerifyMint: React.FC = () => {
               <p className="text-xl font-pangolin text-center text-gray-800 mb-4">
                 {tierInfo.message}
               </p>
-              
+
               {/* Détails du solde */}
               <div className="bg-white/70 rounded-lg p-4 mb-6 mx-auto max-w-md">
                 <h3 className="text-lg font-pangolin font-bold text-center mb-2">💰 Détails de votre wallet</h3>
@@ -182,7 +182,7 @@ const VerifyMint: React.FC = () => {
                   <p className="font-pangolin">Solde: <span className="font-bold">{tierInfo.balance.toFixed(4)} SOL</span></p>
                   <p className="font-pangolin">Valeur: <span className="font-bold">${tierInfo.balanceUSD.toLocaleString()}</span></p>
                   <p className="font-pangolin text-sm text-gray-600">
-                    Tier {tierInfo.tier}: ${tierInfo.minThreshold.toLocaleString()} - 
+                    Tier {tierInfo.tier}: ${tierInfo.minThreshold.toLocaleString()} -
                     {tierInfo.maxThreshold ? `$${tierInfo.maxThreshold.toLocaleString()}` : '∞'}
                   </p>
                   {tierInfo.nftNumber && (
@@ -197,7 +197,7 @@ const VerifyMint: React.FC = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="text-center">
                 {tierInfo.tier === "TOO_POOR" ? (
                   <button disabled className="blob-button bg-red-400 text-black font-pangolin font-bold text-2xl px-8 py-4 opacity-50 cursor-not-allowed">
