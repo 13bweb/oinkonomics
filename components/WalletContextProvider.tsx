@@ -1,7 +1,7 @@
 'use client';
 
 import React, { FC, useMemo } from 'react';
-import { UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
+import { HARDCODED_WALLET_STANDARDS, UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import {
 	PhantomWalletAdapter,
@@ -11,6 +11,13 @@ import {
 	LedgerWalletAdapter,
 	TrustWalletAdapter,
 	SafePalWalletAdapter,
+	Coin98WalletAdapter,
+	MathWalletAdapter,
+	NightlyWalletAdapter,
+	NufiWalletAdapter,
+	SolongWalletAdapter,
+	TokenPocketWalletAdapter,
+	XDEFIWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 
@@ -27,6 +34,13 @@ const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) 
 			new TrustWalletAdapter(),
 			new SafePalWalletAdapter(),
 			new LedgerWalletAdapter(),
+			new Coin98WalletAdapter(),
+			new TokenPocketWalletAdapter(),
+			new MathWalletAdapter(),
+			new NufiWalletAdapter(),
+			new NightlyWalletAdapter(),
+			new SolongWalletAdapter(),
+			new XDEFIWalletAdapter(),
 		],
 		[network],
 	);
@@ -39,6 +53,7 @@ const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) 
 				autoConnect: true,
 				theme: 'dark',
 				lang: 'fr',
+				hardcodedWallets: HARDCODED_WALLET_STANDARDS,
 				metadata: {
 					name: 'Oinkonomics',
 					description: 'Oinkonomics NFT Mint - Application mobile Solana avec connexion unifiée',
