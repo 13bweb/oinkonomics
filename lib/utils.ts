@@ -10,6 +10,21 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import toast from 'react-hot-toast';
 
+const PUBLIC_RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com';
+const CANDY_GUARD = process.env.NEXT_PUBLIC_CANDY_GUARD || '';
+const COLLECTION_MINT = process.env.NEXT_PUBLIC_COLLECTION_MINT || '';
+const COLLECTION_UPDATE_AUTHORITY = process.env.NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY || '';
+const SOL_PAYMENT_DESTINATION = process.env.NEXT_PUBLIC_SOL_PAYMENT_DESTINATION || '';
+const COMPUTE_UNIT_LIMIT = Number(process.env.NEXT_PUBLIC_COMPUTE_UNIT_LIMIT ?? 400000);
+const COMPUTE_UNIT_MICROLAMPORTS = Number(process.env.NEXT_PUBLIC_COMPUTE_UNIT_MICROLAMPORTS ?? 0);
+
+const candyMachineByTier: Record<WalletTier, string | null> = {
+  TOO_POOR: null,
+  POOR: process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR ?? null,
+  MID: process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_MID ?? null,
+  RICH: process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_RICH ?? null,
+};
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -43,9 +58,6 @@ export const TIER_THRESHOLDS = {
   MID: { min: 1000, max: 10000, nftRange: [100, 200] },   // 1000$ à 10000$ → NFT #100-200
   RICH: { min: 10000, max: null, nftRange: [200, 300] }   // 10000$+ → NFT #200-300
 } as const
-
-// Token de la collection (devnet)
-export const COLLECTION_TOKEN = "9JCdYQL53tH97ef7zZBTYWYtLAcWSQVMocs2AjqjD6a4"
 
 // Récupère le prix SOL en USD via CoinGecko (fallback à 0 si échec)
 export async function fetchSOLPriceUSD(): Promise<number> {
@@ -115,9 +127,7 @@ export function getWalletTier(balanceSOL: number, solPriceUSD: number): WalletTi
 
 export async function getWalletBalance(walletAddress: string): Promise<number> {
   try {
-    const connection = new Connection(
-      process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com'
-    );
+    const connection = new Connection(PUBLIC_RPC_URL);
     
     const publicKey = new PublicKey(walletAddress);
     const balance = await connection.getBalance(publicKey);
@@ -157,10 +167,14 @@ export function getNFTRangeForTier(tier: WalletTier): string {
 }
 
 export const createUmiInstance = (wallet: WalletAdapter) => {
-  const umi = createUmi(process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com');
+  const umi = createUmi(PUBLIC_RPC_URL);
   return umi
     .use(walletAdapterIdentity(wallet))
     .use(mplCandyMachine());
+};
+
+export const getCandyMachineIdForTier = (tier: WalletTier): string | null => {
+  return candyMachineByTier[tier] ?? null;
 };
 
 export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => {
@@ -171,12 +185,15 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       throw new Error('Wallet non connecté');
     }
 
-    // Vérifier que c'est bien la vraie Candy Machine Oinkonomics
-    if (candyMachineId !== "8HTSVL3fNTg8CugR8veRGVEyLhz5CBbkW2T4m54zdTAn") {
-      throw new Error('ID de Candy Machine invalide. Utilisez la vraie collection Oinkonomics !');
+    if (!CANDY_GUARD || !COLLECTION_MINT || !COLLECTION_UPDATE_AUTHORITY || !SOL_PAYMENT_DESTINATION) {
+      throw new Error('Configuration mint incomplète. Vérifiez les variables NEXT_PUBLIC_CANDY_GUARD, NEXT_PUBLIC_COLLECTION_MINT, NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY et NEXT_PUBLIC_SOL_PAYMENT_DESTINATION.');
     }
 
-    console.log('✅ Mint depuis la VRAIE collection Oinkonomics déployée sur devnet...');
+    console.log('✅ Mint vers la collection Oinkonomics configurée', {
+      candyMachineId,
+      candyGuard: CANDY_GUARD,
+      collectionMint: COLLECTION_MINT,
+    });
     
     // Initialiser UMI avec wallet adapter
     const umi = createUmiInstance(wallet);
@@ -190,12 +207,11 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
     
     // Informations de la Candy Machine Oinkonomics depuis hashlips/cache.json
     const candyMachine = publicKey(candyMachineId);
-    const candyGuard = publicKey("6BBpt7rcWNy6u5ApCpykgpvRV7Vv49JgfAcGxWoUCA9v");
-    const collectionMint = publicKey("9JCdYQL53tH97ef7zZBTYWYtLAcWSQVMocs2AjqjD6a4");
+    const candyGuard = publicKey(CANDY_GUARD);
+    const collectionMint = publicKey(COLLECTION_MINT);
     
     // Récupérer la VRAIE collection update authority depuis la blockchain (comme dans hashlips)
-    // CORRECTION : L'autorité réelle est FFTLr4uWg5HdYpvgtEnxtzMQWHEoFjWVWiPQZ7Wxvsfm !
-    let collectionUpdateAuthorityStr = "FFTLr4uWg5HdYpvgtEnxtzMQWHEoFjWVWiPQZ7Wxvsfm"; // VRAIE autorité
+    let collectionUpdateAuthorityStr = COLLECTION_UPDATE_AUTHORITY;
     
     try {
       const { fetchDigitalAsset } = await import('@metaplex-foundation/mpl-token-metadata');
@@ -220,9 +236,9 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       nftMint: nftMint.publicKey.toString()
     });
 
-    // Ajouter compute budget instructions (ESSENTIEL pour éviter "exceeded CUs meter")
-    const computeUnits = 400000; // Même valeur que hashlips/.env 
-    const priorityMicrolamports = 0; // Même valeur que hashlips/.env
+    // Ajouter compute budget instructions si configuré pour éviter les erreurs de compute units
+    const computeUnits = COMPUTE_UNIT_LIMIT;
+    const priorityMicrolamports = COMPUTE_UNIT_MICROLAMPORTS;
     
     const extras = [];
     if (computeUnits > 0) {
@@ -238,10 +254,10 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       candyGuard,
       nftMint,
       collectionMint,
-      collectionUpdateAuthority, // ✅ Autorité RÉELLE : FFTLr4uWg5HdYpvgtEnxtzMQWHEoFjWVWiPQZ7Wxvsfm
+      collectionUpdateAuthority,
       mintArgs: {
         solPayment: some({
-          destination: publicKey("5zHBXzhaqKXJRMd7KkuWsb4s8zPyakKdijr9E3jgyG8Z")
+          destination: publicKey(SOL_PAYMENT_DESTINATION)
         })
       }
     };
@@ -285,7 +301,7 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       if (error.message.includes('insufficient') || error.message.includes('lamports')) {
         errorMessage = '💰 Solde insuffisant ! Vous avez besoin de ~0.011 SOL pour minter (0.01 + frais réseau)';
       } else if (error.message.includes('guard') || error.message.includes('sol_payment')) {
-        errorMessage = '🚫 Paiement requis : 0.01 SOL. Vérifiez votre solde devnet !';
+        errorMessage = '🚫 Paiement requis : 0.01 SOL. Vérifiez votre solde et réessayez !';
       } else if (error.message.includes('sold out') || error.message.includes('empty')) {
         errorMessage = '😱 Collection épuisée ! Plus de NFTs disponibles dans cette Candy Machine';
       } else if (error.message.includes('freeze')) {

@@ -7,7 +7,7 @@ import ImageSwitcher from "../components/ImageSwitcher";
 import TiersExplainer from "../components/TiersExplainer";
 import Community from "../components/Community";
 import WalletConnect from "../components/WalletConnect";
-import { mintNFT } from "../lib/utils";
+import { getCandyMachineIdForTier, mintNFT } from "../lib/utils";
 
 type VerifyResponse = {
   tier: "TOO_POOR" | "POOR" | "MID" | "RICH";
@@ -28,6 +28,21 @@ export default function HomePage() {
   const [minting, setMinting] = useState(false);
   const [data, setData] = useState<VerifyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const networkLabel = process.env.NEXT_PUBLIC_SOLANA_CLUSTER_LABEL ?? "MAINNET";
+  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "";
+  const collectionMint = process.env.NEXT_PUBLIC_COLLECTION_MINT ?? "";
+  const explorerBase = "https://explorer.solana.com/address";
+  const explorerClusterParam = rpcUrl.includes("devnet")
+    ? "?cluster=devnet"
+    : rpcUrl.includes("testnet")
+    ? "?cluster=testnet"
+    : rpcUrl.includes("mainnet")
+    ? "?cluster=mainnet-beta"
+    : "";
+  const explorerUrl = collectionMint
+    ? `${explorerBase}/${collectionMint}${explorerClusterParam}`
+    : "";
 
   const walletAddress = useMemo(() => publicKey?.toBase58() ?? null, [publicKey]);
 
@@ -89,19 +104,15 @@ export default function HomePage() {
       return;
     }
     
-    // Définir les Candy Machine IDs par tier
-    const candyMachineIds = {
-      TOO_POOR: "", // Pas de mint possible
-      POOR: "8HTSVL3fNTg8CugR8veRGVEyLhz5CBbkW2T4m54zdTAn", // Vrai Candy Machine ID
-      MID: "8HTSVL3fNTg8CugR8veRGVEyLhz5CBbkW2T4m54zdTAn",  // Vrai Candy Machine ID  
-      RICH: "8HTSVL3fNTg8CugR8veRGVEyLhz5CBbkW2T4m54zdTAn"  // Vrai Candy Machine ID
-    };
-    
     setMinting(true);
     const t = toast.loading(`Minting NFT #${data.nftNumber}…`);
     
     try {
-      const candyMachineId = candyMachineIds[data.tier];
+      const candyMachineId = getCandyMachineIdForTier(data.tier);
+
+      if (!candyMachineId) {
+        throw new Error(`Missing Candy Machine ID for tier ${data.tier}`);
+      }
       console.log('🎯 Tentative de mint:', { tier: data.tier, nftNumber: data.nftNumber, candyMachineId });
       
       const res = await mintNFT(wallet.adapter, candyMachineId);
@@ -143,18 +154,30 @@ export default function HomePage() {
               <h1 className="text-5xl md:text-7xl font-black leading-tight tracking-tight text-black drop-shadow-title">
                 OinkonomicsSol
               </h1>
-              <div className="absolute -top-2 -right-4 bg-orange-400 text-black px-3 py-1 rounded-full text-sm font-bold border-2 border-black shadow-hard transform rotate-12">
-                DEVNET
-              </div>
+              {networkLabel && (
+                <div className="absolute -top-2 -right-4 bg-orange-400 text-black px-3 py-1 rounded-full text-sm font-bold border-2 border-black shadow-hard transform rotate-12">
+                  {networkLabel}
+                </div>
+              )}
             </div>
             <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
               Enter a world where your crypto wallet defines your status. Scan, get ranked, and mint a unique NFT for your tier.
             </p>
-            <div className="bg-orange-50 border-2 border-orange-400 rounded-lg p-3">
-              <p className="text-sm text-orange-800">
-                🔧 <strong>Devnet Collection:</strong> 9JCdYQL53tH97ef7zZBTYWYtLAcWSQVMocs2AjqjD6a4
-              </p>
-            </div>
+            {collectionMint && (
+              <div className="bg-orange-50 border-2 border-orange-400 rounded-lg p-3">
+                <p className="text-sm text-orange-800">
+                  🔧 <strong>Collection Mint:</strong>{' '}
+                  <a
+                    href={explorerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-orange-600"
+                  >
+                    {collectionMint}
+                  </a>
+                </p>
+              </div>
+            )}
             <ul className="text-gray-900 text-base md:text-lg space-y-1">
               <li><span className="font-semibold text-red-600">TOO_POOR</span>: Less than $10 (No NFT)</li>
               <li><span className="font-semibold text-yellow-600">POOR</span>: $10 – $1,000 (NFT #1-100)</li>

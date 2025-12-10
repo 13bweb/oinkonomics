@@ -12,18 +12,13 @@ interface WalletConnectProps {
 const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
   const [mounted, setMounted] = useState(false);
   const [onMobile, setOnMobile] = useState(false);
-  const { wallet, connect, connected } = useWallet();
+  const { connected } = useWallet();
   const isCompact = _variant === 'compact';
 
   useEffect(() => {
     setMounted(true);
     setOnMobile(isMobile());
-    if (isMobile() && (window.navigator.userAgent.includes('Phantom') || window.navigator.userAgent.includes('Solflare'))) {
-      if (wallet && !connected) {
-        connect();
-      }
-    }
-  }, [wallet, connected, connect]);
+  }, []);
 
   const getPhantomDeeplink = () => {
     const params = new URLSearchParams({
@@ -59,27 +54,8 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
     );
   }
 
-  if (onMobile && !wallet && !connected) {
-    return (
-      <div className="flex flex-col space-y-2">
-        <a href={getPhantomDeeplink()} className="text-center px-4 py-2 rounded-lg bg-purple-500 text-white border-2 border-black">
-          Open in Phantom
-        </a>
-        <a href={getSolflareDeeplink()} className="text-center px-4 py-2 rounded-lg bg-yellow-500 text-white border-2 border-black">
-          Open in Solflare
-        </a>
-        <a href={getBackpackDeeplink()} className="text-center px-4 py-2 rounded-lg bg-blue-500 text-white border-2 border-black">
-          Open in Backpack
-        </a>
-        <a href={getGlowDeeplink()} className="text-center px-4 py-2 rounded-lg bg-pink-500 text-white border-2 border-black">
-          Open in Glow
-        </a>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative z-50">
+    <div className="relative z-50 space-y-3">
       <div className="absolute -top-1 -left-2 sm:-top-1.5 sm:-left-3 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-yellow-400 rounded-full opacity-80 animate-bounce hidden sm:block" />
       <div className="absolute -top-0.5 -right-1.5 sm:-top-1 sm:-right-2 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-pink-400 rounded-full opacity-80 animate-pulse hidden sm:block" />
       <div className="absolute -bottom-0.5 -left-1.5 sm:-bottom-1 sm:-left-2 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-blue-400 rounded-full opacity-80 animate-bounce hidden sm:block" />
@@ -107,6 +83,23 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
           isCompact ? 'sm:text-sm text-xs sm:px-4 px-3 sm:py-2.5 py-2' : 'sm:text-base text-sm sm:px-5 px-4 sm:py-3 py-2.5'
         }`}
       />
+
+      {onMobile && !connected && (
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <a href={getPhantomDeeplink()} className="text-center px-3 py-2 rounded-lg bg-purple-500 text-white border-2 border-black text-xs font-semibold">
+            Open Phantom
+          </a>
+          <a href={getSolflareDeeplink()} className="text-center px-3 py-2 rounded-lg bg-yellow-500 text-black border-2 border-black text-xs font-semibold">
+            Open Solflare
+          </a>
+          <a href={getBackpackDeeplink()} className="text-center px-3 py-2 rounded-lg bg-blue-500 text-white border-2 border-black text-xs font-semibold">
+            Open Backpack
+          </a>
+          <a href={getGlowDeeplink()} className="text-center px-3 py-2 rounded-lg bg-pink-500 text-white border-2 border-black text-xs font-semibold">
+            Open Glow
+          </a>
+        </div>
+      )}
     </div>
   );
 };
