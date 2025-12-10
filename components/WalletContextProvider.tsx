@@ -3,18 +3,37 @@
 import React, { FC, useMemo } from 'react';
 import { UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import {
+	PhantomWalletAdapter,
+	SolflareWalletAdapter,
+	TorusWalletAdapter,
+	CoinbaseWalletAdapter,
+	LedgerWalletAdapter,
+	TrustWalletAdapter,
+	SafePalWalletAdapter,
+} from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 
 const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
 	const network = WalletAdapterNetwork.Devnet;
-	const endpoint = useMemo(() => {
-		const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network);
-		return rpcUrl;
-	}, [network]);
+	const rpcUrl = useMemo(() => process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network), [network]);
+
+	const wallets = useMemo(
+		() => [
+			new PhantomWalletAdapter(),
+			new SolflareWalletAdapter({ network }),
+			new TorusWalletAdapter({ params: { network } }),
+			new CoinbaseWalletAdapter(),
+			new TrustWalletAdapter(),
+			new SafePalWalletAdapter(),
+			new LedgerWalletAdapter(),
+		],
+		[network],
+	);
 
 	return (
 		<UnifiedWalletProvider
-			wallets={[]}
+			wallets={wallets}
 			config={{
 				env: network === WalletAdapterNetwork.Devnet ? 'devnet' : 'mainnet-beta',
 				autoConnect: true,
@@ -25,6 +44,7 @@ const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) 
 					description: 'Oinkonomics NFT Mint - Application mobile Solana avec connexion unifiée',
 					url: 'https://oinkonomics.vercel.app/',
 					iconUrls: ['https://oinkonomics.vercel.app/favicon.ico'],
+					additionalInfo: rpcUrl,
 				},
 				notificationCallback: {
 					onConnect: () => {
