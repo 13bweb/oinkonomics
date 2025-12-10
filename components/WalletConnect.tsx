@@ -1,7 +1,7 @@
 'use client';
 
 import { UnifiedWalletButton, useWallet } from '@jup-ag/wallet-adapter';
-import React, { useEffect, useState } from 'react';
+import React, { ComponentType, useEffect, useMemo, useState } from 'react';
 
 interface WalletConnectProps {
   variant?: 'default' | 'compact';
@@ -14,6 +14,15 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  const UnifiedWalletButtonComponent = useMemo(() => {
+    // Cast avoids React 19 promise-based typing issues shipping with the adapter
+    return UnifiedWalletButton as unknown as ComponentType<{
+      overrideContent?: React.ReactNode;
+      buttonClassName?: string;
+      currentUserClassName?: string;
+    }>;
   }, []);
 
   if (!mounted) {
@@ -31,7 +40,7 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
       <div className="absolute -bottom-0.5 -left-1.5 sm:-bottom-1 sm:-left-2 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-blue-400 rounded-full opacity-80 animate-bounce hidden sm:block" />
       <div className="absolute -bottom-1 -right-2 sm:-bottom-1.5 sm:-right-3 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-green-400 rounded-full opacity-80 animate-pulse hidden sm:block" />
 
-      <UnifiedWalletButton
+      <UnifiedWalletButtonComponent
         buttonClassName={`wallet-adapter-button-trigger transition-transform active:scale-95 hover:scale-105 sm:border-[4px] border-[3px] ${isCompact ? 'sm:text-sm text-xs sm:px-4 px-3 sm:py-2.5 py-2' : 'sm:text-base text-sm sm:px-5 px-4 sm:py-3 py-2.5'
           }`}
         currentUserClassName="wallet-adapter-button-trigger"
