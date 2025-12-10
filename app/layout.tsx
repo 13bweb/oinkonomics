@@ -14,6 +14,26 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Load Eruda debug console on mobile
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+        script.onload = () => {
+          // @ts-ignore
+          if (window.eruda) {
+            // @ts-ignore
+            window.eruda.init();
+            console.log('🔍 Eruda Debug Console activée - Cliquez sur l\'icône en bas à droite');
+          }
+        };
+        document.body.appendChild(script);
+      }
+    }
+  }, []);
+
   return (
     <html lang="en">
       <body suppressHydrationWarning={true}>
