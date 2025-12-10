@@ -41,7 +41,7 @@ const Hero: React.FC = () => {
               Scan my wallet
             </button>
             <div className="relative w-auto inline-block">
-              <WalletConnect />
+              <WalletConnect variant="compact" />
             </div>
           </div>
           

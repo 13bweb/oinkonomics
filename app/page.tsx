@@ -2,11 +2,11 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import toast, { Toaster } from "react-hot-toast";
-// WalletConnect is now rendered inside the Header component
 import About from "../components/About";
 import ImageSwitcher from "../components/ImageSwitcher";
 import TiersExplainer from "../components/TiersExplainer";
 import Community from "../components/Community";
+import WalletConnect from "../components/WalletConnect";
 import { mintNFT } from "../lib/utils";
 
 type VerifyResponse = {
@@ -61,7 +61,7 @@ export default function HomePage() {
       const res = await fetch("/api/verify-tier", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ walletAddress: finalWalletAddress }),
+        body: JSON.stringify({ walletAddress: finalWalletAddress }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -78,7 +78,7 @@ export default function HomePage() {
       setLoading(false);
       toast.dismiss(t);
     }
-  }, [walletAddress]);
+  }, [walletAddress, wallet, connect]);
 
   const handleMint = useCallback(async () => {
     if (!wallet?.adapter || !data) return;
@@ -132,7 +132,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen relative overflow-hidden">
       <Toaster position="top-center" />
-      {/* WalletConnect now lives in the Header component */}
+      {/* WalletConnect referral card */}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-white/40 dark:via-white/5 dark:to-white/10" />
 
@@ -161,6 +161,10 @@ export default function HomePage() {
               <li><span className="font-semibold text-blue-600">MID</span>: $1,000 – $10,000 (NFT #100-200)</li>
               <li><span className="font-semibold text-purple-600">RICH</span>: $10,000+ (NFT #200-300)</li>
             </ul>
+
+            <div className="pt-2">
+              <WalletConnect />
+            </div>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <button
