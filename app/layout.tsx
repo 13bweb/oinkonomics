@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Import styles
 import './globals.css';
+import 'jupiverse-kit/dist/index.css';
 
 export default function RootLayout({
   children,
