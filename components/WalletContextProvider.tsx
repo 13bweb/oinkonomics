@@ -5,123 +5,146 @@ import { JupiverseKitProvider } from 'jupiverse-kit';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { clusterApiUrl } from '@solana/web3.js';
 import {
-	PhantomWalletAdapter,
-	SolflareWalletAdapter,
-	TrustWalletAdapter,
-	CoinbaseWalletAdapter,
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  TrustWalletAdapter,
+  CoinbaseWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { useWallet } from '@jup-ag/wallet-adapter';
 import toast from 'react-hot-toast';
 
+// NOTE:
+// We attempt to dynamically load MobileWalletAdapter and WalletConnectAdapter.
+// If packages aren't present, fallback gracefully so build doesn't break.
+
+type AnyAdapter = any;
+
+const tryRequire = (pkg: string) => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require(pkg);
+  } catch (e) {
+    return null;
+  }
+};
+
 // Composant interne pour gérer les notifications de connexion
 const WalletNotificationHandler: FC = () => {
-	const { connected, wallet, connecting } = useWallet();
+  const { connected, wallet, connecting } = useWallet();
 
-	const isMobile = useMemo(() => {
-		if (typeof window === 'undefined') return false;
-		return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-	}, []);
+  const isMobile = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent,
+    );
+  }, []);
 
-	useEffect(() => {
-		if (connected && wallet) {
-			const walletName = wallet?.adapter?.name || 'Wallet';
-			console.log('[Wallet] Connecté:', walletName, 'Mobile:', isMobile);
+  useEffect(() => {
+    if (connected && wallet) {
+      toast.success(`Wallet connecté: ${wallet.adapter?.name || wallet?.name || 'unknown'}`);
+    } else if (!connected && !connecting && isMobile) {
+      // help hints for mobile (non-blocking)
+      // Do not spam toasts; only show minor hint if user attempted to connect but failed
+      // This trace helps debugging in prod
+      // console.debug available for dev
+    }
+  }, [connected, wallet, connecting, isMobile]);
 
-			toast.success(`✅ ${walletName} connecté!`, {
-				duration: 3000,
-				icon: '🎉',
-				position: isMobile ? 'bottom-center' : 'top-right',
-			});
-		}
-	}, [connected, wallet, isMobile]);
-
-	useEffect(() => {
-		if (!connected && !connecting) {
-			// Wallet déconnecté (ne pas afficher au chargement initial)
-			const hasBeenConnected = sessionStorage.getItem('wallet_was_connected');
-			if (hasBeenConnected) {
-				console.log('[Wallet] Déconnecté');
-				toast.success('Wallet déconnecté', {
-					duration: 2000,
-					position: isMobile ? 'bottom-center' : 'top-right',
-				});
-				sessionStorage.removeItem('wallet_was_connected');
-			}
-		} else if (connected) {
-			sessionStorage.setItem('wallet_was_connected', 'true');
-		}
-	}, [connected, connecting, isMobile]);
-
-	return null;
+  return null;
 };
 
 const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
-	const network = WalletAdapterNetwork.Mainnet;
-	const endpoint = useMemo(() => process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network), [network]);
-	const env = network === WalletAdapterNetwork.Mainnet ? 'mainnet-beta' : 'devnet';
+  const isMobile = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent,
+    );
+  }, []);
 
-	// Détection mobile
-	const isMobile = useMemo(() => {
-		if (typeof window === 'undefined') return false;
-		return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-	}, []);
+  // Metadata WalletConnect v2 avec Project ID
+  const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
 
-	// Configuration des wallets avec support mobile
-	const wallets = useMemo(() => {
-		const adapters = [];
+  useEffect(() => {
+    if (!walletConnectProjectId && isMobile) {
+      console.warn(
+        '⚠️ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID manquant - Connexion mobile limitée. Prévoir WalletConnect v2 Project ID.',
+      );
+    }
+  }, [walletConnectProjectId, isMobile]);
 
-		// Phantom - Support desktop + mobile (via deep link)
-		adapters.push(new PhantomWalletAdapter());
+  const adapters = useMemo<AnyAdapter[]>(() => {
+    const adaptersList: AnyAdapter[] = [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      new TrustWalletAdapter(),
+      new CoinbaseWalletAdapter(),
+    ];
 
-		// Solflare - Support desktop + mobile
-		adapters.push(new SolflareWalletAdapter());
+    // Try to load a Mobile Wallet Adapter (MWA) if available.
+    const mobilePkg = tryRequire('@solana/wallet-adapter-mobile') || tryRequire('@solana-mobile/mobile-wallet-adapter');
+    if (isMobile && mobilePkg) {
+      try {
+        const MobileWalletAdapter = mobilePkg?.MobileWalletAdapter || mobilePkg?.default || mobilePkg;
+        if (MobileWalletAdapter) {
+          adaptersList.unshift(new MobileWalletAdapter());
+        }
+      } catch (err) {
+        console.warn('MobileWalletAdapter initialisation échouée', err);
+      }
+    }
 
-		// Trust Wallet - Mobile-first
-		adapters.push(new TrustWalletAdapter());
+    // Try to attach WalletConnect adapter as fallback (requires project id)
+    if (walletConnectProjectId) {
+      const wcPkg = tryRequire('@solana/wallet-adapter-walletconnect') || tryRequire('@solana/wallet-adapter-walletconnect-v2');
+      if (wcPkg) {
+        try {
+          const WalletConnectAdapter = wcPkg?.WalletConnectAdapter || wcPkg?.default || wcPkg;
+          if (WalletConnectAdapter) {
+            adaptersList.push(new WalletConnectAdapter({ projectId: walletConnectProjectId }));
+          }
+        } catch (err) {
+          console.warn('WalletConnectAdapter initialisation échouée', err);
+        }
+      }
+    }
 
-		// Coinbase Wallet - Support mobile
-		adapters.push(new CoinbaseWalletAdapter());
+    console.log(`✅ ${adaptersList.length} wallets configurés (Mobile: ${isMobile ? 'OUI' : 'NON'})`);
+    return adaptersList;
+  }, [isMobile, walletConnectProjectId]);
 
-		console.log(`✅ ${adapters.length} wallets configurés (Mobile: ${isMobile ? 'OUI' : 'NON'})`);
-		return adapters;
-	}, [isMobile]);
+  // Decide autoConnect policy:
+  // - Desktop: enable autoConnect (expected UX)
+  // - Mobile: enable autoConnect if we found a mobile adapter or walletconnect project id is set
+  const autoConnect = useMemo(() => {
+    if (!isMobile) return true;
+    const hasMobileAdapter = adapters.some((a) => {
+      const name = a?.constructor?.name?.toLowerCase?.() || '';
+      return name.includes('mobile') || name.includes('saga') || name.includes('mobilewallet');
+    });
+    const hasWalletConnect = Boolean(walletConnectProjectId);
+    return Boolean(hasMobileAdapter || hasWalletConnect);
+  }, [isMobile, adapters, walletConnectProjectId]);
 
-	// Metadata WalletConnect v2 avec Project ID
-	const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+  const env = (process.env.NEXT_PUBLIC_SOLANA_ENV as WalletAdapterNetwork) || 'devnet';
+  const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl(env || 'devnet');
 
-	useEffect(() => {
-		if (!walletConnectProjectId && isMobile) {
-			console.warn('⚠️ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID manquant - Connexion mobile limitée');
-		}
-	}, [walletConnectProjectId, isMobile]);
-
-	return (
-		<JupiverseKitProvider
-			autoConnect={!isMobile} // Désactiver autoConnect sur mobile pour meilleure UX
-			env={env}
-			endpoint={endpoint}
-			wallets={wallets}
-			theme="dark"
-			lang="fr"
-			metadata={{
-				name: process.env.NEXT_PUBLIC_APP_NAME || 'Oinkonomics',
-				description: 'Oinkonomics NFT Mint - Application Solana avec support mobile complet',
-				url: process.env.NEXT_PUBLIC_APP_URL || 'https://oinkonomics.vercel.app/',
-				iconUrls: [process.env.NEXT_PUBLIC_APP_ICON || 'https://oinkonomics.vercel.app/icon.png'],
-				// WalletConnect v2 configuration
-				...(walletConnectProjectId && {
-					walletConnectProjectId,
-					redirect: {
-						native: 'oinkonomics://',
-						universal: 'https://oinkonomics.vercel.app/wallet-callback',
-					},
-				}),
-			}}
-		>
-			<WalletNotificationHandler />
-			{children}
-		</JupiverseKitProvider>
-	);
+  return (
+    <JupiverseKitProvider
+      autoConnect={autoConnect}
+      env={env}
+      endpoint={endpoint}
+      wallets={adapters}
+      theme="dark"
+      lang="fr"
+      metadata={{
+        name: process.env.NEXT_PUBLIC_APP_NAME || 'Oinkonomics',
+        description: 'Oinkonomics NFT Mint - Application Solana avec support mobile complet',
+      }}
+    >
+      <WalletNotificationHandler />
+      {children}
+    </JupiverseKitProvider>
+  );
 };
 
 export default WalletContextProvider;
