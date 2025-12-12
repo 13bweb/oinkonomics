@@ -1,112 +1,209 @@
-# Oinkonomics - Solana NFT Minting Application
+# 🐷 OINKONOMICS - NFT Collection
 
-## Overview
-Oinkonomics is a Proof-of-Wealth NFT collection on Solana that transforms wallet value into collectible pig NFTs. Users connect their wallet, get verified for their portfolio value, and mint free NFTs based on their tier (Poor, MID, or Rich).
+Collection de 3000 NFTs programmables (pNFT) sur Solana Mainnet avec **mint gratuit** et sans restrictions.
 
-## Features
-- 🐷 Wallet connection with Solana Wallet Adapter
-- 💰 Real-time portfolio value calculation using Jupiter API
-- 🎯 Tier-based NFT minting (Poor, MID, Rich)
-- 🔒 Secure backend verification and allowlist management
-- 🎨 Cartoon-style UI inspired by Sia Skateson's art
-- ⚡ Built with Next.js 14, TypeScript, and Tailwind CSS
+![Oinkonomics](https://oinkonomics.vercel.app/icon.png)
 
-## Prerequisites
-- Node.js 16.15+ 
-- Solana CLI installed and configured
-- Sugar CLI installed
-- A funded Solana wallet for server operations
-- RPC endpoint (paid service recommended for production)
+---
 
-## Installation
+## 🎯 Caractéristiques
 
-1. Clone the repository:
+- **🆓 Mint Gratuit**: 0 SOL (seulement ~0.001 SOL de frais réseau)
+- **🔓 Sans Restrictions**: Mint illimité, pas de whitelist
+- **🔄 Transférable**: Pas de freeze/soulbound
+- **🎨 pNFT**: Programmable NFTs avec Rule Set
+- **⚡ Sequential**: Mint dans l'ordre (1, 2, 3...)
+- **🎲 Tiers**: 3 tiers basés sur la valeur du wallet
+
+---
+
+## 📊 Tiers NFT
+
+### 🟡 POOR ($10 - $1,000)
+- NFT #1 - #1000
+- Wallet entre $10 et $1,000 USD
+
+### 🔵 MID ($1,000 - $10,000)
+- NFT #1001 - #2000
+- Wallet entre $1,000 et $10,000 USD
+
+### 🟣 RICH (> $10,000)
+- NFT #2001 - #3000
+- Wallet supérieur à $10,000 USD
+
+### ❌ TOO POOR (< $10)
+- Pas de mint possible
+- Wallet inférieur à $10 USD
+
+---
+
+## 🚀 Démarrage Rapide
+
+### Installation
+
 ```bash
-git clone <repository-url>
+# Cloner le repository
+git clone https://github.com/votre-username/oinkonomics.git
 cd oinkonomics
-```
 
-2. Install dependencies:
-```bash
+# Installer les dépendances
 npm install
+
+# Vérifier la configuration
+./verify-config.sh
+
+# Démarrer le serveur de développement
+npm run dev
 ```
 
-3. Copy the environment file:
+### Configuration
+
+Le fichier `.env.local` est déjà configuré avec toutes les variables nécessaires.
+
+Pour vérifier la configuration:
 ```bash
-cp env.example .env.local
+./verify-config.sh
 ```
 
-4. Configure your environment variables in `.env.local`:
-   - Set your RPC endpoints
-   - Add your server keypair path
-   - Add your Candy Machine IDs (after deployment)
+---
 
-## Deployment Process
+## 📦 Technologies
 
-### 1. Deploy Candy Machines
-For each tier (Poor, MID, Rich), create a separate directory with:
-- `config.json` - Candy Machine configuration
-- `assets/` - NFT images and metadata
+- **Frontend**: Next.js 14, React 18, TypeScript
+- **Styling**: Tailwind CSS
+- **Blockchain**: Solana (Mainnet)
+- **NFT Standard**: Metaplex pNFT (Programmable NFT)
+- **Wallet**: Unified Wallet Kit (Jupiter)
+- **RPC**: Helius
 
-Deploy each tier:
+---
+
+## 🔑 Adresses Blockchain
+
+### Candy Machine
+```
+V1uPFruGcjeFZ9hh23dnJ8tNnNemhUfgkFZmAmwaBDV
+```
+
+### Candy Guard
+```
+3YZEt7McXt4fbYokvmkc1kq1joSkxX4WHPCf3B9k1hi9
+```
+
+### Collection
+```
+EpBdTNEBChZV3D1diKALwxiQirgXSGFu6Z6f85B1w53Y
+```
+
+### Rule Set (pNFT)
+```
+eBJLFYPxJmMGKuFwpDWkzxZeUrad92kZRC5BJLpzyT9
+```
+
+---
+
+## 🧪 Tests
+
+### Vérifier la configuration
 ```bash
-sugar launch -k /path/to/your/keypair.json -r YOUR_RPC_ENDPOINT
+./verify-config.sh
 ```
 
-Save the Candy Machine IDs returned by Sugar.
-
-### 2. Configure Backend
-Update `.env.local` with:
-- Your Candy Machine IDs
-- Server keypair path
-- RPC endpoints
-
-### 3. Run the Application
+### Lancer les tests
 ```bash
 npm run dev
 ```
 
-## Architecture
+Puis ouvrez `http://localhost:3000` et suivez le [Guide de Test](./GUIDE_TEST.md).
 
-### Frontend
-- Next.js 14 with App Router
-- Solana Wallet Adapter for wallet connection
-- Metaplex Umi for NFT minting
-- Tailwind CSS for styling
+---
 
-### Backend API
-- `/api/verify-tier` - Verifies wallet value and adds to allowlist
-- Uses Jupiter API for real-time token pricing
-- Executes Sugar CLI commands for allowlist management
+## 📚 Documentation
 
-### Security
-- All wallet verification happens on the backend
-- Server keypair used for allowlist transactions
-- No client-side manipulation possible
+- **[Configuration Complète](./MINT_GRATUIT_CONFIG.md)**: Toutes les adresses et paramètres
+- **[Guide de Test](./GUIDE_TEST.md)**: Instructions détaillées pour tester le mint
+- **[Déploiement Production](./DEPLOIEMENT_PRODUCTION.md)**: Guide de déploiement sur Vercel
 
-## Tier Thresholds
-- **Ineligible**: < $10
-- **Poor**: $10 - $999
-- **MID**: $1,000 - $9,999  
-- **Rich**: $10,000+
+---
 
-## Development
+## 🔗 Liens Utiles
 
-### Testing
-1. Switch to devnet in `app/layout.tsx`
-2. Deploy test Candy Machines on devnet
-3. Test with devnet wallets
+- **Solana Explorer**: https://explorer.solana.com/?cluster=mainnet
+- **Candy Machine**: https://explorer.solana.com/address/V1uPFruGcjeFZ9hh23dnJ8tNnNemhUfgkFZmAmwaBDV?cluster=mainnet
+- **Collection**: https://explorer.solana.com/address/EpBdTNEBChZV3D1diKALwxiQirgXSGFu6Z6f85B1w53Y?cluster=mainnet
 
-### Production Checklist
-- [ ] Deploy Candy Machines on mainnet
-- [ ] Configure production RPC endpoints
-- [ ] Fund server wallet with SOL
-- [ ] Test end-to-end flow
-- [ ] Update environment variables
+---
 
-## Contributing
-Built by Sia Skateson (@siaskateson) and TreizeB (@TreizeB__)
-Supported by SuperteamBLKN and SuperteamFRANCE
+## 🛠️ Scripts Disponibles
 
-## License
-MIT License
+```bash
+# Développement
+npm run dev          # Démarrer le serveur de dev
+
+# Production
+npm run build        # Build pour production
+npm run start        # Démarrer en production
+
+# Utilitaires
+npm run lint         # Linter le code
+./verify-config.sh   # Vérifier la configuration
+```
+
+---
+
+## 📋 Prérequis
+
+- Node.js 18+
+- npm ou yarn
+- Wallet Solana (Phantom, Solflare, etc.)
+- Minimum 0.002 SOL pour les frais de transaction
+
+---
+
+## 🐛 Dépannage
+
+### Erreur: "Solde insuffisant"
+Ajoutez au moins 0.002 SOL à votre wallet pour les frais réseau.
+
+### Erreur: "Configuration Candy Guard incorrecte"
+Vérifiez que `NEXT_PUBLIC_CANDY_GUARD` est bien configuré dans `.env.local`.
+
+### Le wallet ne se connecte pas
+1. Rafraîchissez la page
+2. Assurez-vous d'être sur Mainnet
+3. Essayez un autre navigateur
+
+Pour plus de détails, consultez le [Guide de Test](./GUIDE_TEST.md).
+
+---
+
+## 🤝 Contribution
+
+Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
+
+---
+
+## 📄 Licence
+
+MIT License - voir le fichier [LICENSE](./LICENSE) pour plus de détails.
+
+---
+
+## 🎉 Statut
+
+- ✅ Configuration complète
+- ✅ Build réussi
+- ✅ Tests locaux OK
+- ⏳ Déploiement production (à venir)
+
+---
+
+## 📞 Support
+
+- **Discord**: [Lien Discord]
+- **Twitter**: [@Oinkonomics]
+- **Email**: support@oinkonomics.io
+
+---
+
+**Fait avec ❤️ pour la communauté Solana** 🐷🚀

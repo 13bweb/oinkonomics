@@ -45,4 +45,10 @@ declare global {
     solflare?: SolanaWallet;
     trustWallet?: TrustWallet;
   }
+
+  // Types pour les événements de promesses rejetées
+  interface PromiseRejectionEvent extends Event {
+    reason: unknown;
+    promise: Promise<unknown>;
+  }
 }

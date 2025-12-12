@@ -65,13 +65,17 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
     }
   }, [isMobile, connected, connecting, mounted]);
 
+  // Type pour les props du UnifiedWalletButton
+  interface UnifiedWalletButtonProps {
+    overrideContent?: React.ReactNode;
+    buttonClassName?: string;
+    currentUserClassName?: string;
+  }
+
   const UnifiedWalletButtonComponent = useMemo(() => {
-    // Cast avoids React 19 promise-based typing issues shipping with the adapter
-    return UnifiedWalletButton as unknown as ComponentType<{
-      overrideContent?: React.ReactNode;
-      buttonClassName?: string;
-      currentUserClassName?: string;
-    }>;
+    // Type assertion pour éviter les problèmes de typage avec React 19
+    // UnifiedWalletButton est un composant valide, mais TypeScript peut avoir des problèmes avec les types dynamiques
+    return UnifiedWalletButton as ComponentType<UnifiedWalletButtonProps>;
   }, []);
 
   if (!mounted) {

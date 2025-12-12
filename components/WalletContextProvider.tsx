@@ -12,6 +12,7 @@ import {
 } from '@solana/wallet-adapter-wallets';
 import { useWallet } from '@jup-ag/wallet-adapter';
 import toast from 'react-hot-toast';
+import logger from '../lib/logger-client';
 
 // Composant interne pour gérer les notifications de connexion
 const WalletNotificationHandler: FC = () => {
@@ -25,7 +26,7 @@ const WalletNotificationHandler: FC = () => {
 	useEffect(() => {
 		if (connected && wallet) {
 			const walletName = wallet?.adapter?.name || 'Wallet';
-			console.log('[Wallet] Connecté:', walletName, 'Mobile:', isMobile);
+			logger.log('[Wallet] Connecté:', walletName, 'Mobile:', isMobile);
 
 			toast.success(`✅ ${walletName} connecté!`, {
 				duration: 3000,
@@ -40,7 +41,7 @@ const WalletNotificationHandler: FC = () => {
 			// Wallet déconnecté (ne pas afficher au chargement initial)
 			const hasBeenConnected = sessionStorage.getItem('wallet_was_connected');
 			if (hasBeenConnected) {
-				console.log('[Wallet] Déconnecté');
+				logger.log('[Wallet] Déconnecté');
 				toast.success('Wallet déconnecté', {
 					duration: 2000,
 					position: isMobile ? 'bottom-center' : 'top-right',
@@ -82,7 +83,7 @@ const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) 
 		// Coinbase Wallet - Support mobile
 		adapters.push(new CoinbaseWalletAdapter());
 
-		console.log(`✅ ${adapters.length} wallets configurés (Mobile: ${isMobile ? 'OUI' : 'NON'})`);
+		logger.log(`✅ ${adapters.length} wallets configurés (Mobile: ${isMobile ? 'OUI' : 'NON'})`);
 		return adapters;
 	}, [isMobile]);
 
@@ -91,7 +92,7 @@ const WalletContextProvider: FC<{ children: React.ReactNode }> = ({ children }) 
 
 	useEffect(() => {
 		if (!walletConnectProjectId && isMobile) {
-			console.warn('⚠️ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID manquant - Connexion mobile limitée');
+			logger.warn('⚠️ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID manquant - Connexion mobile limitée');
 		}
 	}, [walletConnectProjectId, isMobile]);
 

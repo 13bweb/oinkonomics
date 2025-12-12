@@ -7,6 +7,7 @@ import Community from "../components/Community";
 import ImageSwitcher from "../components/ImageSwitcher";
 import TiersExplainer from "../components/TiersExplainer";
 import WalletConnect from "../components/WalletConnect";
+import logger from "../lib/logger-client";
 import { getCandyMachineIdForTier, mintNFT } from "../lib/utils";
 
 type VerifyResponse = {
@@ -29,6 +30,7 @@ export default function HomePage() {
   const [minting, setMinting] = useState(false);
   const [data, setData] = useState<VerifyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mintSuccess, setMintSuccess] = useState(false);
 
   const networkLabel = process.env.NEXT_PUBLIC_SOLANA_CLUSTER_LABEL ?? "MAINNET";
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "";
@@ -81,7 +83,7 @@ export default function HomePage() {
           finalWalletAddress = wallet.adapter.publicKey.toBase58();
         }
       } catch (e: unknown) {
-        console.error("[wallet] connect failed", e);
+        logger.error("[wallet] connect failed", e);
         const errorMessage = e instanceof Error ? e.message : "Failed to finalize wallet connection";
         toast.error(errorMessage);
         return;
@@ -95,6 +97,7 @@ export default function HomePage() {
     setLoading(true);
     setError(null);
     setData(null);
+    setMintSuccess(false); // Réinitialiser l'état de mint réussi lors d'un nouveau scan
     const t = toast.loading("Scanning your wallet…");
     try {
       const res = await fetch("/api/verify-tier", {
@@ -137,18 +140,19 @@ export default function HomePage() {
       if (!candyMachineId) {
         throw new Error(`Missing Candy Machine ID for tier ${data.tier}`);
       }
-      console.log('🎯 Tentative de mint:', { tier: data.tier, nftNumber: data.nftNumber, candyMachineId });
+      logger.log('🎯 Tentative de mint:', { tier: data.tier, nftNumber: data.nftNumber, candyMachineId });
 
       const res = await mintNFT(wallet.adapter, candyMachineId);
 
       if (res.success) {
         toast.success(res.message || `🎉 NFT #${data.nftNumber} minté avec succès !`);
-        console.log('✅ Mint réussi:', res);
+        logger.log('✅ Mint réussi:', res);
+        setMintSuccess(true); // Marquer le mint comme réussi pour cacher le bouton
       } else {
         throw new Error(res.error || 'Échec du mint');
       }
     } catch (e: unknown) {
-      console.error('❌ Erreur mint:', e);
+      logger.error('❌ Erreur mint:', e);
       const errorMessage = e instanceof Error ? e.message : "Erreur inconnue";
       toast.error(`❌ Échec du mint: ${errorMessage}`);
     } finally {
@@ -279,7 +283,7 @@ export default function HomePage() {
               </div>
               <div className="mt-2 text-sm font-bold text-purple-700">NFT Range: {x.nft}</div>
               <p className="mt-3 text-gray-800">{x.d}</p>
-              {data?.tier && data.tier === x.t && (
+              {data?.tier && data.tier === x.t && !mintSuccess && (
                 <button
                   onClick={handleMint}
                   disabled={minting || data.tier === "TOO_POOR"}
@@ -290,6 +294,11 @@ export default function HomePage() {
                     : minting ? "Minting…" : `Mint NFT #${data.nftNumber}`
                   }
                 </button>
+              )}
+              {data?.tier && data.tier === x.t && mintSuccess && (
+                <div className="mt-5 px-4 py-2 bg-green-500 text-white rounded-lg text-center font-bold">
+                  ✅ NFT Minté avec succès !
+                </div>
               )}
             </div>
           ))}

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useWallet } from "@jup-ag/wallet-adapter";
 import { toast } from "react-hot-toast";
 import { mintNFT } from "../lib/utils";
+import logger from "../lib/logger-client";
 
 type Status = "idle" | "loading" | "verified" | "error";
 type Tier = "TOO_POOR" | "POOR" | "MID" | "RICH";
@@ -36,24 +37,31 @@ const VerifyMint: React.FC = () => {
     setErrorMessage(null);
 
     try {
+      logger.log('🔍 Vérification du wallet:', publicKey.toBase58());
+
       const response = await fetch("/api/verify-tier", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: publicKey.toBase58() }),
       });
 
+      logger.log('📡 Réponse API:', response.status, response.statusText);
+
       if (response.ok) {
         const data = await response.json();
+        logger.log('✅ Données reçues:', data);
         setTierInfo(data);
         setStatus("verified");
         toast.success(`${data.message}`);
       } else {
         const errorData = await response.json();
-        setErrorMessage(errorData.message || "Verification failed");
+        logger.error('❌ Erreur API:', errorData);
+        setErrorMessage(errorData.message || errorData.error || "Verification failed");
         setStatus("error");
-        toast.error(errorData.message || "Verification failed");
+        toast.error(errorData.message || errorData.error || "Verification failed");
       }
     } catch (error) {
+      logger.error('❌ Erreur réseau:', error);
       const message = error instanceof Error ? error.message : "Network error";
       setErrorMessage(message);
       setStatus("error");
@@ -84,7 +92,7 @@ const VerifyMint: React.FC = () => {
     setStatus("loading");
 
     try {
-      console.log('🎯 VerifyMint - Tentative de mint RÉEL:', {
+      logger.log('🎯 VerifyMint - Tentative de mint RÉEL:', {
         tier: tierInfo.tier,
         nftNumber: tierInfo.nftNumber,
         candyMachine: candyMachineId
@@ -99,7 +107,7 @@ const VerifyMint: React.FC = () => {
         throw new Error(result.error || 'Échec du mint');
       }
     } catch (error) {
-      console.error('❌ VerifyMint - Erreur:', error);
+      logger.error('❌ VerifyMint - Erreur:', error);
       const message = error instanceof Error ? error.message : "Minting failed";
       toast.error(`❌ ${message}`);
       setStatus("error");
@@ -183,8 +191,8 @@ const VerifyMint: React.FC = () => {
               <div className="bg-white/70 rounded-lg p-4 mb-6 mx-auto max-w-md">
                 <h3 className="text-lg font-pangolin font-bold text-center mb-2">💰 Détails de votre wallet</h3>
                 <div className="space-y-1 text-center">
-                  <p className="font-pangolin">Solde: <span className="font-bold">{tierInfo.balance.toFixed(4)} SOL</span></p>
-                  <p className="font-pangolin">Valeur: <span className="font-bold">${tierInfo.balanceUSD.toLocaleString()}</span></p>
+                  <p className="font-pangolin">Solde SOL: <span className="font-bold">{tierInfo.balance.toFixed(4)} SOL</span></p>
+                  <p className="font-pangolin text-lg">Valeur Totale (SOL + Tokens): <span className="font-bold text-green-600">${tierInfo.balanceUSD.toLocaleString()}</span></p>
                   <p className="font-pangolin text-sm text-gray-600">
                     Tier {tierInfo.tier}: ${tierInfo.minThreshold.toLocaleString()} -
                     {tierInfo.maxThreshold ? `$${tierInfo.maxThreshold.toLocaleString()}` : '∞'}
@@ -210,10 +218,10 @@ const VerifyMint: React.FC = () => {
                 ) : (
                   <div className="text-center mb-4">
                     <p className="text-lg font-pangolin text-gray-700 mb-2">
-                      💰 Mint coût : <strong>0.022 SOL</strong> (~$4)
+                      🎉 Mint GRATUIT : <strong>0 SOL</strong> (seulement ~0.001 SOL de frais réseau)
                     </p>
                     <button onClick={handleMint} className={`blob-button ${getTierColor(tierInfo.tier)} text-black font-pangolin font-bold text-xl px-8 py-4`}>
-                      <span className="relative z-10">🐷 Minter NFT #{tierInfo.nftNumber} (0.022 SOL) 🐷</span>
+                      <span className="relative z-10">🐷 Minter NFT #{tierInfo.nftNumber} GRATUITEMENT 🐷</span>
                     </button>
                   </div>
                 )}

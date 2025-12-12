@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCandyMachineIdForTier, verifyWalletTier } from '../../../lib/utils';
+import { checkRateLimit } from '../../../lib/rate-limit';
+import { logger } from '../../../lib/logger';
+
+// Constantes de sécurité
+const MAX_BODY_SIZE = 1024; // 1KB max pour le body
 
 // Fonction de validation d'adresse Solana
 function isValidSolanaAddress(address: string): boolean {
@@ -11,9 +16,80 @@ function isValidSolanaAddress(address: string): boolean {
   return base58Regex.test(address);
 }
 
+// Protection CSRF basique - vérifier l'origine
+function isValidOrigin(origin: string | null, host: string | null): boolean {
+  if (!origin || !host) return false;
+
+  // En développement, accepter localhost
+  if (process.env.NODE_ENV === 'development') {
+    return origin.includes('localhost') || origin.includes('127.0.0.1');
+  }
+
+  // En production, vérifier que l'origine correspond au host
+  try {
+    const originUrl = new URL(origin);
+    const hostUrl = new URL(`https://${host}`);
+    return originUrl.hostname === hostUrl.hostname;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // 1. Rate limiting
+    const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1';
+    const rateLimitResult = await checkRateLimit(ip);
+
+    if (!rateLimitResult.success) {
+      logger.warn(`Rate limit exceeded for IP: ${ip}`);
+      return NextResponse.json(
+        {
+          error: 'Too many requests',
+          message: 'Rate limit exceeded. Please try again later.',
+        },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'Retry-After': '60',
+          },
+        }
+      );
+    }
+
+    // 2. Protection CSRF - vérifier l'origine
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host');
+
+    if (!isValidOrigin(origin, host)) {
+      logger.warn(`Invalid origin: ${origin} for host: ${host}`);
+      return NextResponse.json(
+        { error: 'Invalid origin' },
+        { status: 403 }
+      );
+    }
+
+    // 3. Validation de la taille du body
+    const contentType = request.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 400 }
+      );
+    }
+
+    // Lire le body avec limitation de taille
+    const bodyText = await request.text();
+    if (bodyText.length > MAX_BODY_SIZE) {
+      return NextResponse.json(
+        { error: 'Request body too large' },
+        { status: 413 }
+      );
+    }
+
+    const body = JSON.parse(bodyText);
     const { walletAddress } = body;
 
     // Validation de la présence
@@ -67,7 +143,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     // Logger l'erreur complète côté serveur uniquement
-    console.error('❌ Erreur API verify-tier:', error);
+    logger.error('❌ Erreur API verify-tier:', error);
 
     // Ne pas exposer les détails de l'erreur au client
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

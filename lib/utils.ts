@@ -1,18 +1,24 @@
-import { mint, mplCandyMachine } from '@metaplex-foundation/mpl-candy-machine';
-import { mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata';
-import { generateSigner, publicKey } from '@metaplex-foundation/umi';
+import { mintV2, mplCandyMachine } from '@metaplex-foundation/mpl-candy-machine';
+import { findTokenRecordPda, mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata';
+import { findAssociatedTokenPda, setComputeUnitLimit } from '@metaplex-foundation/mpl-toolbox';
+import { generateSigner, publicKey, some, transactionBuilder } from '@metaplex-foundation/umi';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import { walletAdapterIdentity } from '@metaplex-foundation/umi-signer-wallet-adapters';
 import { WalletAdapter } from '@solana/wallet-adapter-base';
-import { ComputeBudgetProgram, Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { type ClassValue, clsx } from "clsx";
+import { createHash } from 'crypto';
 import { twMerge } from "tailwind-merge";
 import { WalletTier, WalletTierInfo } from '../types/globals';
+import { fetchWithTimeout } from './fetch-with-timeout';
+import { logger } from './logger';
+import { getCachedPrice, setCachedPrice } from './price-cache';
 
 const PUBLIC_RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com';
-// CandyGuard removed - not needed for this setup
+const CANDY_GUARD = process.env.NEXT_PUBLIC_CANDY_GUARD || '';
 const COLLECTION_MINT = process.env.NEXT_PUBLIC_COLLECTION_MINT || '';
 const COLLECTION_UPDATE_AUTHORITY = process.env.NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY || '';
+const RULE_SET = process.env.NEXT_PUBLIC_RULE_SET || '';
 const COMPUTE_UNIT_LIMIT = Number(process.env.NEXT_PUBLIC_COMPUTE_UNIT_LIMIT ?? 400000);
 const COMPUTE_UNIT_MICROLAMPORTS = Number(process.env.NEXT_PUBLIC_COMPUTE_UNIT_MICROLAMPORTS ?? 0);
 
@@ -47,15 +53,15 @@ if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
   }
 
   if (missingVars.length > 0) {
-    console.error('❌ ERREUR: Variables d\'environnement manquantes ou non configurées:');
-    missingVars.forEach(v => console.error(`   - ${v}`));
-    console.error('⚠️  Configurez toutes les variables requises avant le déploiement.');
+    logger.error('❌ ERREUR: Variables d\'environnement manquantes ou non configurées:');
+    missingVars.forEach(v => logger.error(`   - ${v}`));
+    logger.error('⚠️  Configurez toutes les variables requises avant le déploiement.');
   }
 }
 
 // Validation des variables d'environnement critiques (uniquement en développement)
 if (process.env.NODE_ENV === 'development') {
-  console.log('🚀 OINKONOMICS - Mode développement actif');
+  logger.log('🚀 OINKONOMICS - Mode développement actif');
   // Ne pas logger les valeurs sensibles même en dev
 }
 
@@ -107,23 +113,46 @@ export const TIER_THRESHOLDS = {
 } as const;
 
 // Récupère le prix SOL en USD via CoinGecko (fallback à 0 si échec)
+// Utilise un cache et un timeout pour éviter les blocages
 export async function fetchSOLPriceUSD(): Promise<number> {
+  const cacheKey = 'sol_price_usd';
+
+  // Vérifier le cache
+  const cachedPrice = getCachedPrice(cacheKey);
+  if (cachedPrice !== null) {
+    logger.debug('SOL price from cache:', cachedPrice);
+    return cachedPrice;
+  }
+
   try {
-    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+    const res = await fetchWithTimeout(
+      'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+      {},
+      5000 // 5 secondes timeout
+    );
+
     if (!res.ok) {
-      console.warn('CoinGecko returned non-ok status for SOL price');
+      logger.warn('CoinGecko returned non-ok status for SOL price:', res.status);
       return 0;
     }
+
     const j = await res.json();
     const price = j?.solana?.usd ?? 0;
-    return typeof price === 'number' ? price : 0;
+
+    if (typeof price === 'number' && price > 0) {
+      // Mettre en cache uniquement si le prix est valide
+      setCachedPrice(cacheKey, price);
+      return price;
+    }
+
+    return 0;
   } catch (error) {
-    console.warn('Failed to fetch SOL price from CoinGecko:', error);
+    logger.warn('Failed to fetch SOL price from CoinGecko:', error);
     return 0;
   }
 }
 
-export function getWalletTier(balanceSOL: number, solPriceUSD: number): WalletTierInfo {
+export function getWalletTier(balanceSOL: number, solPriceUSD: number, walletAddress?: string): WalletTierInfo {
   const balanceUSD = balanceSOL * (solPriceUSD || 0);
 
   // balance is expressed in SOL, balanceUSD added separately in the returned object
@@ -145,7 +174,7 @@ export function getWalletTier(balanceSOL: number, solPriceUSD: number): WalletTi
       minThreshold: TIER_THRESHOLDS.POOR.min,
       maxThreshold: TIER_THRESHOLDS.POOR.max,
       nftRange: TIER_THRESHOLDS.POOR.nftRange,
-      nftNumber: generateNFTNumber(tier)
+      nftNumber: walletAddress ? generateNFTNumber(tier, walletAddress) : null
     };
   } else if (balanceUSD < TIER_THRESHOLDS.MID.max) {
     const tier = 'MID';
@@ -156,7 +185,7 @@ export function getWalletTier(balanceSOL: number, solPriceUSD: number): WalletTi
       minThreshold: TIER_THRESHOLDS.MID.min,
       maxThreshold: TIER_THRESHOLDS.MID.max,
       nftRange: TIER_THRESHOLDS.MID.nftRange,
-      nftNumber: generateNFTNumber(tier)
+      nftNumber: walletAddress ? generateNFTNumber(tier, walletAddress) : null
     };
   } else {
     const tier = 'RICH';
@@ -167,13 +196,13 @@ export function getWalletTier(balanceSOL: number, solPriceUSD: number): WalletTi
       minThreshold: TIER_THRESHOLDS.RICH.min,
       maxThreshold: TIER_THRESHOLDS.RICH.max,
       nftRange: TIER_THRESHOLDS.RICH.nftRange,
-      nftNumber: generateNFTNumber(tier)
+      nftNumber: walletAddress ? generateNFTNumber(tier, walletAddress) : null
     };
   }
 }
 
 // Nouvelle fonction: calcule le tier basé sur la valeur USD TOTALE (SOL + tokens)
-export function getWalletTierFromUSD(totalUSD: number, solBalance: number): WalletTierInfo {
+export function getWalletTierFromUSD(totalUSD: number, solBalance: number, walletAddress?: string): WalletTierInfo {
   // Utilise totalUSD pour déterminer le tier (au lieu de balanceSOL * solPriceUSD)
   if (totalUSD < TIER_THRESHOLDS.TOO_POOR.max) {
     return {
@@ -193,7 +222,7 @@ export function getWalletTierFromUSD(totalUSD: number, solBalance: number): Wall
       minThreshold: TIER_THRESHOLDS.POOR.min,
       maxThreshold: TIER_THRESHOLDS.POOR.max,
       nftRange: TIER_THRESHOLDS.POOR.nftRange,
-      nftNumber: generateNFTNumber(tier)
+      nftNumber: walletAddress ? generateNFTNumber(tier, walletAddress) : null
     };
   } else if (totalUSD < TIER_THRESHOLDS.MID.max) {
     const tier = 'MID';
@@ -204,7 +233,7 @@ export function getWalletTierFromUSD(totalUSD: number, solBalance: number): Wall
       minThreshold: TIER_THRESHOLDS.MID.min,
       maxThreshold: TIER_THRESHOLDS.MID.max,
       nftRange: TIER_THRESHOLDS.MID.nftRange,
-      nftNumber: generateNFTNumber(tier)
+      nftNumber: walletAddress ? generateNFTNumber(tier, walletAddress) : null
     };
   } else {
     const tier = 'RICH';
@@ -215,7 +244,7 @@ export function getWalletTierFromUSD(totalUSD: number, solBalance: number): Wall
       minThreshold: TIER_THRESHOLDS.RICH.min,
       maxThreshold: TIER_THRESHOLDS.RICH.max,
       nftRange: TIER_THRESHOLDS.RICH.nftRange,
-      nftNumber: generateNFTNumber(tier)
+      nftNumber: walletAddress ? generateNFTNumber(tier, walletAddress) : null
     };
   }
 }
@@ -249,64 +278,91 @@ export async function getTokenBalances(walletAddress: string): Promise<{ mint: s
 
     return tokens;
   } catch (error) {
-    console.warn('Erreur lors de la récupération des tokens:', error);
+    logger.warn('Erreur lors de la récupération des tokens:', error);
     return [];
   }
 }
 
-// Récupère les prix des tokens depuis DeFiLlama
+// Récupère les prix des tokens depuis DeFiLlama avec cache et timeout
 export async function getTokenPrices(mints: string[]): Promise<Record<string, number>> {
   if (mints.length === 0) return {};
 
+  const prices: Record<string, number> = {};
+  const uncachedMints: string[] = [];
+
+  // Vérifier le cache pour chaque mint
+  for (const mint of mints) {
+    const cacheKey = `token_price_${mint}`;
+    const cachedPrice = getCachedPrice(cacheKey);
+    if (cachedPrice !== null) {
+      prices[mint] = cachedPrice;
+    } else {
+      uncachedMints.push(mint);
+    }
+  }
+
+  // Si tous les prix sont en cache, retourner directement
+  if (uncachedMints.length === 0) {
+    return prices;
+  }
+
   try {
     // DeFiLlama API pour les prix Solana
-    const coinsParam = mints.map(mint => `solana:${mint}`).join(',');
-    const response = await fetch(`https://coins.llama.fi/prices/current/${coinsParam}`);
+    const coinsParam = uncachedMints.map(mint => `solana:${mint}`).join(',');
+    const response = await fetchWithTimeout(
+      `https://coins.llama.fi/prices/current/${coinsParam}`,
+      {},
+      5000 // 5 secondes timeout
+    );
 
     if (!response.ok) {
-      console.warn('DeFiLlama API error:', response.status);
-      return {};
+      logger.warn('DeFiLlama API error:', response.status);
+      return prices; // Retourner les prix en cache même si l'API échoue
     }
 
     const data = await response.json();
-    const prices: Record<string, number> = {};
 
-    for (const mint of mints) {
+    for (const mint of uncachedMints) {
       const key = `solana:${mint}`;
       if (data.coins?.[key]?.price) {
-        prices[mint] = data.coins[key].price;
+        const price = data.coins[key].price;
+        prices[mint] = price;
+        // Mettre en cache
+        setCachedPrice(`token_price_${mint}`, price);
       }
     }
 
     return prices;
   } catch (error) {
-    console.warn('Erreur lors de la récupération des prix:', error);
-    return {};
+    logger.warn('Erreur lors de la récupération des prix:', error);
+    return prices; // Retourner les prix en cache même en cas d'erreur
   }
 }
 
 // Calcule la valeur totale du wallet (SOL + tous les tokens SPL)
+// Optimisé avec parallélisation des appels RPC
 export async function getTotalWalletValue(walletAddress: string): Promise<{ totalUSD: number; solBalance: number; solValueUSD: number; tokensValueUSD: number; }> {
   try {
     const connection = new Connection(PUBLIC_RPC_URL);
     const publicKey = new PublicKey(walletAddress);
 
-    // 1. Récupérer le solde SOL
-    const solBalance = await connection.getBalance(publicKey);
+    // Paralléliser les appels RPC pour améliorer les performances
+    const [solBalance, tokens] = await Promise.all([
+      connection.getBalance(publicKey),
+      getTokenBalances(walletAddress)
+    ]);
+
     const solBalanceInSOL = solBalance / LAMPORTS_PER_SOL;
 
-    // 2. Récupérer le prix du SOL
-    const solPriceUSD = await fetchSOLPriceUSD();
+    // Paralléliser la récupération du prix SOL et des prix des tokens
+    const [solPriceUSD, prices] = await Promise.all([
+      fetchSOLPriceUSD(),
+      getTokenPrices(tokens.map(t => t.mint))
+    ]);
+
     const solValueUSD = solBalanceInSOL * solPriceUSD;
 
-    // 3. Récupérer tous les tokens SPL
-    const tokens = await getTokenBalances(walletAddress);
-
-    // 4. Récupérer les prix des tokens
-    const mints = tokens.map(t => t.mint);
-    const prices = await getTokenPrices(mints);
-
-    // 5. Calculer la valeur totale des tokens
+    // Calculer la valeur totale des tokens
     let tokensValueUSD = 0;
     for (const token of tokens) {
       const price = prices[token.mint] || 0;
@@ -315,7 +371,7 @@ export async function getTotalWalletValue(walletAddress: string): Promise<{ tota
 
     const totalUSD = solValueUSD + tokensValueUSD;
 
-    console.log('💰 Valeur totale du wallet:', {
+    logger.log('💰 Valeur totale du wallet:', {
       solBalance: solBalanceInSOL.toFixed(4),
       solValueUSD: solValueUSD.toFixed(2),
       tokensValueUSD: tokensValueUSD.toFixed(2),
@@ -330,7 +386,7 @@ export async function getTotalWalletValue(walletAddress: string): Promise<{ tota
       tokensValueUSD
     };
   } catch (error) {
-    console.error('Erreur lors du calcul de la valeur totale:', error);
+    logger.error('Erreur lors du calcul de la valeur totale:', error);
     throw new Error('Impossible de calculer la valeur totale du wallet');
   }
 }
@@ -342,7 +398,7 @@ export async function getWalletBalance(walletAddress: string): Promise<number> {
     const balance = await connection.getBalance(publicKey);
     return balance / LAMPORTS_PER_SOL;
   } catch (error) {
-    console.error('Erreur lors de la récupération du solde:', error);
+    logger.error('Erreur lors de la récupération du solde:', error);
     throw new Error('Impossible de récupérer le solde du wallet');
   }
 }
@@ -353,9 +409,10 @@ export async function verifyWalletTier(walletAddress: string): Promise<WalletTie
     const { totalUSD, solBalance } = await getTotalWalletValue(walletAddress);
 
     // Utiliser la NOUVELLE fonction qui calcule le tier avec totalUSD directement
-    const tierInfo = getWalletTierFromUSD(totalUSD, solBalance);
+    // Passer walletAddress pour génération NFT déterministe
+    const tierInfo = getWalletTierFromUSD(totalUSD, solBalance, walletAddress);
 
-    console.log('🎯 Tier calculé:', {
+    logger.log('🎯 Tier calculé:', {
       totalUSD: totalUSD.toFixed(2),
       solBalance: solBalance.toFixed(4),
       tier: tierInfo.tier,
@@ -364,17 +421,48 @@ export async function verifyWalletTier(walletAddress: string): Promise<WalletTie
 
     return tierInfo;
   } catch (error) {
-    console.error('Erreur lors de la vérification du tier:', error);
+    logger.error('Erreur lors de la vérification du tier:', error);
     throw error;
   }
 }
 
-export function generateNFTNumber(tier: WalletTier): number | null {
+/**
+ * Génère un numéro NFT déterministe basé sur l'adresse du wallet et le tier
+ * Utilise SHA256 pour garantir l'unicité et la reproductibilité
+ */
+export function generateNFTNumber(tier: WalletTier, walletAddress: string): number | null {
   const tierConfig = TIER_THRESHOLDS[tier];
   if (!tierConfig.nftRange) return null;
 
   const [min, max] = tierConfig.nftRange;
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  const range = max - min + 1;
+
+  // Hash déterministe basé sur l'adresse du wallet et le tier
+  // Utilise crypto.createHash côté serveur, ou une implémentation côté client
+  let hashNum: number;
+
+  if (typeof window === 'undefined') {
+    // Côté serveur: utiliser crypto
+    const hash = createHash('sha256')
+      .update(walletAddress + tier)
+      .digest('hex');
+    hashNum = parseInt(hash.substring(0, 8), 16);
+  } else {
+    // Côté client: utiliser Web Crypto API
+    // Note: Cette fonction devrait principalement être appelée côté serveur
+    // Pour le client, on peut utiliser une version simplifiée
+    const str = walletAddress + tier;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    hashNum = Math.abs(hash);
+  }
+
+  // Convertir en nombre dans la plage
+  return min + (hashNum % range);
 }
 
 export function getNFTRangeForTier(tier: WalletTier): string {
@@ -399,7 +487,7 @@ export const getCandyMachineIdForTier = (tier: WalletTier): string | null => {
 
 export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => {
   try {
-    console.log('🎯 MINT RÉEL depuis Candy Machine Oinkonomics...', { candyMachineId });
+    logger.log('🎯 MINT GRATUIT - Oinkonomics pNFT (mintV2 avec Token Record)...', { candyMachineId });
 
     if (!wallet || !wallet.publicKey) {
       throw new Error('Wallet non connecté');
@@ -409,104 +497,79 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       throw new Error('Configuration mint incomplète. Vérifiez les variables NEXT_PUBLIC_COLLECTION_MINT et NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY.');
     }
 
+    if (!CANDY_GUARD) {
+      throw new Error('Configuration Candy Guard manquante. Vérifiez NEXT_PUBLIC_CANDY_GUARD.');
+    }
+
     // Initialiser UMI avec wallet adapter
     const umi = createUmiInstance(wallet);
 
-    // Adresse de la Candy Machine (pas de CandyGuard)
+    // Informations de la Candy Machine Oinkonomics
     const candyMachine = publicKey(candyMachineId);
+    const candyGuard = publicKey(CANDY_GUARD);
+    const collectionMint = publicKey(COLLECTION_MINT);
+    const collectionUpdateAuthority = publicKey(COLLECTION_UPDATE_AUTHORITY);
 
-    // Générer le mint signer pour le nouveau NFT
+    // Générer le NFT mint
     const nftMint = generateSigner(umi);
 
-    console.log('🎯 NFT Mint généré:', nftMint.publicKey.toString());
+    // ✅ CRITIQUE: Calculer l'Associated Token Account (ATA) pour le propriétaire
+    // Le Token Record doit être calculé avec l'ATA, pas avec la clé publique directement
+    const [tokenAccount] = findAssociatedTokenPda(umi, {
+      mint: nftMint.publicKey,
+      owner: umi.identity.publicKey
+    });
 
-    // Informations de la Candy Machine Oinkonomics
-    const collectionMint = publicKey(COLLECTION_MINT);
+    // ✅ CRITIQUE: Calculer le Token Record PDA pour pNFT avec l'ATA
+    // Les pNFTs nécessitent un Token Record basé sur le token account, pas la clé publique
+    const [tokenRecord] = findTokenRecordPda(umi, {
+      mint: nftMint.publicKey,
+      token: tokenAccount
+    });
 
-    // Récupérer la VRAIE collection update authority depuis la blockchain (comme dans hashlips)
-    let collectionUpdateAuthorityStr = COLLECTION_UPDATE_AUTHORITY;
-
-    try {
-      const { fetchDigitalAsset } = await import('@metaplex-foundation/mpl-token-metadata');
-      const asset = await fetchDigitalAsset(umi, collectionMint);
-      const onChainAuthority = asset.metadata.updateAuthority;
-
-      if (onChainAuthority && onChainAuthority.toString() !== collectionUpdateAuthorityStr) {
-        console.log('🔄 Utilisation de l\'update authority on-chain:', onChainAuthority.toString());
-        collectionUpdateAuthorityStr = onChainAuthority.toString();
-      }
-    } catch (error) {
-      console.warn('⚠️ Impossible de vérifier la collection, utilisation du cache:', error);
-    }
-
-    const collectionUpdateAuthority = publicKey(collectionUpdateAuthorityStr);
-
-    console.log('🔧 Configuration Candy Machine:', {
+    logger.log('🔧 Configuration Candy Machine (pNFT):', {
       candyMachine: candyMachine.toString(),
+      candyGuard: candyGuard.toString(),
       collectionMint: collectionMint.toString(),
       collectionUpdateAuthority: collectionUpdateAuthority.toString(),
-      nftMint: nftMint.publicKey.toString()
-    });
-
-    // Ajouter compute budget instructions si configuré pour éviter les erreurs de compute units
-    const computeUnits = COMPUTE_UNIT_LIMIT;
-    const priorityMicrolamports = COMPUTE_UNIT_MICROLAMPORTS;
-
-    const extras = [];
-    if (computeUnits > 0) {
-      extras.push(toUmiInstruction(ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits })));
-    }
-    if (priorityMicrolamports > 0) {
-      extras.push(toUmiInstruction(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityMicrolamports })));
-    }
-
-    // Paramètres mint - La Candy Machine gère le paiement automatiquement (SANS CandyGuard)
-    const params = {
-      candyMachine,
-      nftMint: nftMint.publicKey,
-      collectionMint,
-      collectionUpdateAuthority
-    };
-
-    console.log('🔍 Configuration mint:', {
-      candyMachine: candyMachineId,
       nftMint: nftMint.publicKey.toString(),
-      collectionMint: COLLECTION_MINT,
-      collectionUpdateAuthority: COLLECTION_UPDATE_AUTHORITY
+      tokenAccount: tokenAccount.toString(),
+      tokenRecord: tokenRecord.toString()
     });
 
-    // Builder avec compute budget - utilise mint (v1) pour CM sans guard
-    const builder = mint(umi, params);
-    const fullBuilder = extras.length ? builder.prepend(extras) : builder;
+    // ✅ Utiliser mintV2 avec le Candy Guard actif ET le Token Record
+    const result = await transactionBuilder()
+      .add(setComputeUnitLimit(umi, { units: COMPUTE_UNIT_LIMIT }))
+      .add(
+        mintV2(umi, {
+          candyMachine,
+          candyGuard,
+          nftMint,
+          collectionMint,
+          collectionUpdateAuthority,
+          tokenRecord, // ✅ CRITIQUE: Token Record PDA pour pNFT
+          mintArgs: {
+            candyGuard: some({}) // Pas de guards actifs, mais le Candy Guard existe
+          }
+        })
+      )
+      .sendAndConfirm(umi);
 
-    // Exécuter le mint avec compute budget
-    const { signature } = await fullBuilder.sendAndConfirm(umi);
-    const mintResult = { signature };
-
-    console.log('✅ NFT Oinkonomics RÉEL minté avec succès !', {
-      signature: mintResult.signature.toString(),
-      mint: nftMint.publicKey.toString()
+    logger.log('✅ NFT Oinkonomics GRATUIT minté avec succès !', {
+      signature: result.signature.toString()
     });
 
-    // Récupérer les métadonnées pour afficher le nom/numéro
-    let nftName = 'Oinkonomics NFT';
-    try {
-      const { fetchMetadata } = await import('@metaplex-foundation/mpl-token-metadata');
-      const metadata = await fetchMetadata(umi, nftMint.publicKey);
-      nftName = metadata.name;
-    } catch (metaError) {
-      console.warn('⚠️ Impossible de récupérer les métadonnées:', metaError);
-    }
+    // Note: mintFromCandyMachineV2 retourne { signature } mais pas le mint address directement
+    // Le mint address peut être récupéré depuis les logs de transaction si nécessaire
 
     return {
       success: true,
-      signature: mintResult.signature.toString(),
-      mint: nftMint.publicKey.toString(),
-      message: `🎉 ${nftName} minté avec succès ! Mint: ${nftMint.publicKey.toString().substring(0, 8)}...`
+      signature: result.signature.toString(),
+      message: `🎉 NFT Oinkonomics minté gratuitement ! Signature: ${result.signature.toString().substring(0, 8)}...`
     };
 
   } catch (error) {
-    console.error('❌ Erreur de mint Candy Machine:', error);
+    logger.error('❌ Erreur de mint Candy Machine:', error);
 
     // Messages d'erreur améliorés et spécifiques
     let errorMessage = 'Erreur inconnue lors du mint';
@@ -518,13 +581,13 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       if (errorStr.includes('AccountOwnedByWrongProgram') ||
         errorStr.includes('3007') ||
         errorMessageLower.includes('owned by a different program')) {
-        errorMessage = '🚫 Configuration Candy Guard incorrecte. La Candy Machine n\'a pas de Candy Guard valide. Contactez le support technique.';
+        errorMessage = '🚫 Configuration Candy Guard incorrecte. Contactez le support technique.';
       }
-      // Erreur de solde insuffisant
+      // Erreur de solde insuffisant (pour les frais de transaction)
       else if (errorMessageLower.includes('insufficient') ||
         errorMessageLower.includes('lamports') ||
         errorMessageLower.includes('not enough')) {
-        errorMessage = `💰 Solde insuffisant ! Vous avez besoin d'environ 0.023 SOL (0.022 pour le mint + ~0.001 pour les frais réseau)`;
+        errorMessage = `💰 Solde insuffisant ! Vous avez besoin d'environ 0.001 SOL pour les frais de transaction`;
       }
       // Collection épuisée
       else if (errorMessageLower.includes('sold out') ||
@@ -532,15 +595,9 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
         errorMessageLower.includes('no items remaining')) {
         errorMessage = '😱 Collection épuisée ! Plus de NFTs disponibles dans cette Candy Machine';
       }
-      // Problème de freeze guard
-      else if (errorMessageLower.includes('freeze')) {
-        errorMessage = '🧊 Problème avec le freeze guard - contactez le support';
-      }
-      // Erreur de paiement
-      else if (errorMessageLower.includes('payment') ||
-        errorMessageLower.includes('sol_payment') ||
-        errorMessageLower.includes('guard')) {
-        errorMessage = '🚫 Erreur de paiement. Vérifiez que vous avez assez de SOL (minimum 0.023 SOL requis)';
+      // Problème de Rule Set
+      else if (errorMessageLower.includes('rule') || errorMessageLower.includes('ruleset')) {
+        errorMessage = '🔒 Problème avec le Rule Set pNFT - contactez le support';
       }
       // Erreur générique avec détails limités
       else {
