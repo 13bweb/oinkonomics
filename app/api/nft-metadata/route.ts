@@ -23,6 +23,28 @@ function isValidSolanaAddress(s: string) {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
 }
 
+function normalizeAssetUrl(u: string): string {
+  const s = (u ?? "").toString().trim();
+  if (!s) return "";
+  if (s.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${s.slice("ipfs://".length)}`;
+  if (s.startsWith("ar://")) return `https://arweave.net/${s.slice("ar://".length)}`;
+  return s;
+}
+
+async function fetchJsonWithTimeout(url: string, timeoutMs: number) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as { mintAddress?: string };
@@ -40,17 +62,18 @@ export async function POST(req: NextRequest) {
     const md = await fetchMetadata(umi, metadataPda);
 
     // `fetchMetadata` returns an Account-like object where fields are exposed directly (uri/name/symbol).
-    const uri = ((md as any)?.uri ?? "").toString().trim();
+    const uri = normalizeAssetUrl(((md as any)?.uri ?? "").toString().trim());
     const name = ((md as any)?.name ?? "").toString().trim();
     const symbol = ((md as any)?.symbol ?? "").toString().trim();
 
     let imageUrl: string | undefined = undefined;
     if (uri) {
-      const metaRes = await fetch(uri, { headers: { accept: "application/json" } });
+      const metaRes = await fetchJsonWithTimeout(uri, 7000);
       if (metaRes.ok) {
         const j = (await metaRes.json().catch(() => null)) as any;
         const candidate = (j?.image ?? j?.image_url ?? j?.properties?.image ?? "").toString();
-        if (candidate) imageUrl = candidate;
+        const normalized = normalizeAssetUrl(candidate);
+        if (normalized) imageUrl = normalized;
       }
     }
 

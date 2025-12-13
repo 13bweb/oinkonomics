@@ -189,11 +189,15 @@ export default function NFTMintingModal({
 
   const fetchMintedFromApi = useCallback(
     async (m: string) => {
+      const controller = new AbortController();
+      const t = window.setTimeout(() => controller.abort(), 6000);
       const r = await fetch("/api/nft-metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mintAddress: m }),
+        signal: controller.signal,
       });
+      window.clearTimeout(t);
       const j = await r.json().catch(() => null) as any;
       if (!r.ok || !j?.ok) throw new Error(j?.error || "Failed to load minted NFT metadata");
       return { imageUrl: j.imageUrl as string | undefined, name: j.name as string | undefined };
