@@ -68,6 +68,29 @@ export default function RootLayout({
         const errorStack = error?.stack || '';
         const errorString = String(error || event.message);
 
+        // Auto-heal: si un chunk Next.js ne charge pas (souvent après un rebuild/redeploy),
+        // forcer un refresh une seule fois pour récupérer les nouveaux assets.
+        // Sinon l'app reste cassée (ChunkLoadError + erreurs React minifiées).
+        const isChunkLoadError =
+          errorMessage.includes('ChunkLoadError') ||
+          errorMessage.includes('Loading chunk') ||
+          errorString.includes('/_next/static/chunks/') && (errorString.includes('ERR_ABORTED') || errorString.includes('400') || errorString.includes('404'));
+
+        if (isChunkLoadError) {
+          try {
+            const key = '__oink_chunk_reload__';
+            const last = Number(sessionStorage.getItem(key) || '0');
+            const now = Date.now();
+            // éviter boucle infinie
+            if (!last || now - last > 20_000) {
+              sessionStorage.setItem(key, String(now));
+              window.location.reload();
+            }
+          } catch {
+            // ignore
+          }
+        }
+
         // Ignorer les erreurs 403 de l'API web3modal (non critiques)
         const isWeb3ModalError =
           errorMessage?.includes('HTTP status code: 403') ||
