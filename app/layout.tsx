@@ -8,7 +8,7 @@ import WalletContextProvider from '../components/WalletContextProvider';
 import logger from '../lib/logger-client';
 
 // Import styles
-import 'jupiverse-kit/dist/index.css';
+import '@solana/wallet-adapter-react-ui/styles.css';
 import './globals.css';
 
 export default function RootLayout({

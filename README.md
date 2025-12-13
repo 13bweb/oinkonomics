@@ -1,6 +1,6 @@
 # 🐷 OINKONOMICS - NFT Collection
 
-Collection de 3000 NFTs programmables (pNFT) sur Solana Mainnet avec **mint gratuit** et sans restrictions.
+Collection de 3000 NFTs sur Solana Mainnet avec **mint gratuit** et sans restrictions.
 
 ![Oinkonomics](https://oinkonomics.vercel.app/icon.png)
 
@@ -11,7 +11,7 @@ Collection de 3000 NFTs programmables (pNFT) sur Solana Mainnet avec **mint grat
 - **🆓 Mint Gratuit**: 0 SOL (seulement ~0.001 SOL de frais réseau)
 - **🔓 Sans Restrictions**: Mint illimité, pas de whitelist
 - **🔄 Transférable**: Pas de freeze/soulbound
-- **🎨 pNFT**: Programmable NFTs avec Rule Set
+- **🎨 NFT Standard**: NFTs Metaplex standard
 - **⚡ Sequential**: Mint dans l'ordre (1, 2, 3...)
 - **🎲 Tiers**: 3 tiers basés sur la valeur du wallet
 
@@ -72,7 +72,7 @@ Pour vérifier la configuration:
 - **Frontend**: Next.js 14, React 18, TypeScript
 - **Styling**: Tailwind CSS
 - **Blockchain**: Solana (Mainnet)
-- **NFT Standard**: Metaplex pNFT (Programmable NFT)
+- **NFT Standard**: Metaplex NFT Standard
 - **Wallet**: Unified Wallet Kit (Jupiter)
 - **RPC**: Helius
 
@@ -95,11 +95,6 @@ V1uPFruGcjeFZ9hh23dnJ8tNnNemhUfgkFZmAmwaBDV
 EpBdTNEBChZV3D1diKALwxiQirgXSGFu6Z6f85B1w53Y
 ```
 
-### Rule Set (pNFT)
-```
-eBJLFYPxJmMGKuFwpDWkzxZeUrad92kZRC5BJLpzyT9
-```
-
 ---
 
 ## 🧪 Tests
@@ -120,9 +115,9 @@ Puis ouvrez `http://localhost:3000` et suivez le [Guide de Test](./GUIDE_TEST.md
 
 ## 📚 Documentation
 
+- **[Audit Suppression pNFT](./AUDIT_SUPPRESSION_PNFT.md)**: Détails de la migration vers NFTs standards
 - **[Configuration Complète](./MINT_GRATUIT_CONFIG.md)**: Toutes les adresses et paramètres
 - **[Guide de Test](./GUIDE_TEST.md)**: Instructions détaillées pour tester le mint
-- **[Déploiement Production](./DEPLOIEMENT_PRODUCTION.md)**: Guide de déploiement sur Vercel
 
 ---
 
@@ -193,6 +188,7 @@ MIT License - voir le fichier [LICENSE](./LICENSE) pour plus de détails.
 
 - ✅ Configuration complète
 - ✅ Build réussi
+- ✅ Migration vers NFTs standards
 - ✅ Tests locaux OK
 - ⏳ Déploiement production (à venir)
 
@@ -203,6 +199,19 @@ MIT License - voir le fichier [LICENSE](./LICENSE) pour plus de détails.
 - **Discord**: [Lien Discord]
 - **Twitter**: [@Oinkonomics]
 - **Email**: support@oinkonomics.io
+
+---
+
+## 🔄 Changelog
+
+### v2.0.0 - 2025-12-12
+- ✅ Migration complète vers NFTs standards
+- ❌ Suppression de la logique pNFT
+- ✅ Simplification du code de mint
+- ✅ Réduction de la complexité
+
+### v1.0.0 - 2025-12-11
+- ✅ Version initiale avec pNFTs
 
 ---
 

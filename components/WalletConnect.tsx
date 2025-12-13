@@ -1,7 +1,8 @@
 'use client';
 
-import { UnifiedWalletButton, useWallet } from '@jup-ag/wallet-adapter';
-import React, { ComponentType, useEffect, useMemo, useState } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 interface WalletConnectProps {
@@ -65,19 +66,6 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
     }
   }, [isMobile, connected, connecting, mounted]);
 
-  // Type pour les props du UnifiedWalletButton
-  interface UnifiedWalletButtonProps {
-    overrideContent?: React.ReactNode;
-    buttonClassName?: string;
-    currentUserClassName?: string;
-  }
-
-  const UnifiedWalletButtonComponent = useMemo(() => {
-    // Type assertion pour éviter les problèmes de typage avec React 19
-    // UnifiedWalletButton est un composant valide, mais TypeScript peut avoir des problèmes avec les types dynamiques
-    return UnifiedWalletButton as ComponentType<UnifiedWalletButtonProps>;
-  }, []);
-
   if (!mounted) {
     return (
       <div className="relative">
@@ -98,10 +86,9 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ variant: _variant }) => {
         </>
       )}
 
-      <UnifiedWalletButtonComponent
-        buttonClassName={`wallet-adapter-button-trigger transition-transform active:scale-95 hover:scale-105 sm:border-[4px] border-[3px] ${isCompact ? 'sm:text-sm text-xs sm:px-4 px-3 sm:py-2.5 py-2' : 'sm:text-base text-sm sm:px-5 px-4 sm:py-3 py-2.5'
+      <WalletMultiButton
+        className={`wallet-adapter-button-trigger transition-transform active:scale-95 hover:scale-105 sm:border-[4px] border-[3px] ${isCompact ? 'sm:text-sm text-xs sm:px-4 px-3 sm:py-2.5 py-2' : 'sm:text-base text-sm sm:px-5 px-4 sm:py-3 py-2.5'
           } ${isMobile ? 'min-h-[48px] touch-manipulation' : ''}`}
-        currentUserClassName="wallet-adapter-button-trigger"
       />
 
       {/* Message d'aide mobile amélioré */}

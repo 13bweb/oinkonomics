@@ -5,23 +5,23 @@ export default function TiersExplainer() {
   const tiers = [
     {
       key: "POOR",
-      title: "POOR",
+      title: "Piglets",
       range: "< $1,000",
-      blurb: "Playful, gritty, and hungry. Entry tier for beginners and degen explorers.",
+      blurb: "Piglets City Swine starter pack. Fresh in the pen, ready to mint.",
       gradient: "from-rose-200 to-amber-100"
     },
     {
       key: "MID",
-      title: "MID",
+      title: "City Swine",
       range: "$1,000 – $10,000",
-      blurb: "Balanced and climbing. Comfortable with DeFi and building momentum.",
+      blurb: "Street-smart Swine. You know the market, you know the memes, you mint.",
       gradient: "from-sky-200 to-emerald-100"
     },
     {
       key: "RICH",
-      title: "RICH",
+      title: "Oinklords",
       range: "> $10,000",
-      blurb: "Bold and radiant. Power users with diversified bags and on-chain presence.",
+      blurb: "The Oinklords tier. Top of the farm: mint your legendary status.",
       gradient: "from-fuchsia-200 to-cyan-100"
     },
   ];
@@ -31,7 +31,7 @@ export default function TiersExplainer() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8 sm:mb-10">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-black">How tiers work</h2>
-          <p className="mt-2 sm:mt-3 text-gray-700 text-sm sm:text-base px-2">We scan your wallet value in USD and place you in a tier. Each tier mints a different NFT skin.</p>
+          <p className="mt-2 sm:mt-3 text-gray-700 text-sm sm:text-base px-2">We scan your wallet value in USD and place you in a tier. Each tier mints a different NFT range.</p>
         </div>
 
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
@@ -52,7 +52,7 @@ export default function TiersExplainer() {
               <ul className="mt-4 text-sm list-disc pl-5 space-y-1 text-black/80">
                 <li>Scan your wallet to detect total value</li>
                 <li>Get your tier instantly</li>
-                <li>Mint the matching NFT style</li>
+                <li>Mint the matching NFT number range</li>
               </ul>
             </div>
           ))}

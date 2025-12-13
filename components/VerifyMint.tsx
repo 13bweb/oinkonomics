@@ -1,9 +1,9 @@
 "use client";
+import { useWallet } from "@solana/wallet-adapter-react";
 import React, { useState } from "react";
-import { useWallet } from "@jup-ag/wallet-adapter";
 import { toast } from "react-hot-toast";
-import { mintNFT } from "../lib/utils";
 import logger from "../lib/logger-client";
+import { getTierDisplayName, mintNFT } from "../lib/utils";
 
 type Status = "idle" | "loading" | "verified" | "error";
 type Tier = "TOO_POOR" | "POOR" | "MID" | "RICH";
@@ -77,12 +77,15 @@ const VerifyMint: React.FC = () => {
 
     // Empêcher le mint pour TOO_POOR
     if (tierInfo.tier === "TOO_POOR") {
-      toast.error("😱 You need at least $10 to mint! Come back when you're less poor!");
+      toast.error("🥀 Oinkless — You need at least $10 to mint.");
       return;
     }
 
-    // Récupérer la Candy Machine ID depuis l'environnement pour le tier
-    const candyMachineId = tierInfo.candyMachineId || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR;
+    // Récupérer la Candy Machine ID depuis l'environnement (fallback global)
+    const candyMachineId =
+      tierInfo.candyMachineId ||
+      process.env.NEXT_PUBLIC_CANDY_MACHINE_ID ||
+      process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR;
 
     if (!candyMachineId) {
       toast.error("Configuration Candy Machine manquante");
@@ -117,13 +120,13 @@ const VerifyMint: React.FC = () => {
   const getTierLabel = (tier: Tier) => {
     switch (tier) {
       case "TOO_POOR":
-        return "Too Poor";
+        return "Oinkless";
       case "POOR":
-        return "Poor";
+        return "Piglets";
       case "MID":
-        return "MID";
+        return "City Swine";
       case "RICH":
-        return "Rich";
+        return "Oinklords";
       default:
         return tier;
     }
@@ -194,7 +197,7 @@ const VerifyMint: React.FC = () => {
                   <p className="font-pangolin">Solde SOL: <span className="font-bold">{tierInfo.balance.toFixed(4)} SOL</span></p>
                   <p className="font-pangolin text-lg">Valeur Totale (SOL + Tokens): <span className="font-bold text-green-600">${tierInfo.balanceUSD.toLocaleString()}</span></p>
                   <p className="font-pangolin text-sm text-gray-600">
-                    Tier {tierInfo.tier}: ${tierInfo.minThreshold.toLocaleString()} -
+                    Tier {getTierDisplayName(tierInfo.tier)}: ${tierInfo.minThreshold.toLocaleString()} -
                     {tierInfo.maxThreshold ? `$${tierInfo.maxThreshold.toLocaleString()}` : '∞'}
                   </p>
                   {tierInfo.nftNumber && (
@@ -213,7 +216,7 @@ const VerifyMint: React.FC = () => {
               <div className="text-center">
                 {tierInfo.tier === "TOO_POOR" ? (
                   <button disabled className="blob-button bg-red-400 text-black font-pangolin font-bold text-2xl px-8 py-4 opacity-50 cursor-not-allowed">
-                    <span className="relative z-10">❌ NO MINT FOR YOU! GET $10 FIRST!</span>
+                    <span className="relative z-10">🥀 OINKLESS — NO MINT. GET $10 FIRST!</span>
                   </button>
                 ) : (
                   <div className="text-center mb-4">

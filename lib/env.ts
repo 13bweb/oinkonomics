@@ -10,6 +10,8 @@ const envSchema = z.object({
   // Variables publiques (frontend)
   NEXT_PUBLIC_RPC_URL: z.string().url().min(1),
   NEXT_PUBLIC_SOLANA_CLUSTER_LABEL: z.enum(['MAINNET', 'DEVNET', 'TESTNET']).optional(),
+  // Candy Machine ID globale (fallback si les IDs par tier ne sont pas fournis)
+  NEXT_PUBLIC_CANDY_MACHINE_ID: z.string().min(32).optional(),
   NEXT_PUBLIC_CANDY_MACHINE_ID_POOR: z.string().min(32).optional(),
   NEXT_PUBLIC_CANDY_MACHINE_ID_MID: z.string().min(32).optional(),
   NEXT_PUBLIC_CANDY_MACHINE_ID_RICH: z.string().min(32).optional(),

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCandyMachineIdForTier, verifyWalletTier } from '../../../lib/utils';
+import { getCandyMachineIdForTier, getTierDisplayName, verifyWalletTier } from '../../../lib/utils';
 import { checkRateLimit } from '../../../lib/rate-limit';
 import { logger } from '../../../lib/logger';
 
@@ -161,15 +161,16 @@ export async function POST(request: NextRequest) {
 }
 
 function getTierMessage(tier: string, nftNumber: number | null): string {
+  const label = getTierDisplayName(tier);
   switch (tier) {
     case 'TOO_POOR':
-      return "😱 You need at least $10 to mint! Come back when you're less poor!";
+      return "🥀 Oinkless — You need at least $10 to mint. Come back when you’re not oinkless!";
     case 'POOR':
-      return "🥉 Bronze Tier - You can mint NFT #" + nftNumber + " (Range: #1-1000)";
+      return `🐷 ${label} — You can mint NFT #${nftNumber} (Range: #0-400)`;
     case 'MID':
-      return "🥈 Silver Tier - You can mint NFT #" + nftNumber + " (Range: #1001-2000)";
+      return `🐽 ${label} — You can mint NFT #${nftNumber} (Range: #400-800)`;
     case 'RICH':
-      return "🥇 Gold Tier - You can mint NFT #" + nftNumber + " (Range: #2001-3000)";
+      return `🐗 ${label} — You can mint NFT #${nftNumber} (Range: #800-12000)`;
     default:
       return 'Unknown tier';
   }

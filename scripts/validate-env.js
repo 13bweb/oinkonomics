@@ -23,21 +23,6 @@ const requiredVars = [
     validate: (val) => val && ['MAINNET', 'DEVNET', 'TESTNET'].includes(val),
   },
   {
-    name: 'NEXT_PUBLIC_CANDY_MACHINE_ID_POOR',
-    description: 'ID de la Candy Machine POOR',
-    validate: (val) => val && !val.includes('your-') && !val.includes('votre-') && val.length > 20,
-  },
-  {
-    name: 'NEXT_PUBLIC_CANDY_MACHINE_ID_MID',
-    description: 'ID de la Candy Machine MID',
-    validate: (val) => val && !val.includes('your-') && !val.includes('votre-') && val.length > 20,
-  },
-  {
-    name: 'NEXT_PUBLIC_CANDY_MACHINE_ID_RICH',
-    description: 'ID de la Candy Machine RICH',
-    validate: (val) => val && !val.includes('your-') && !val.includes('votre-') && val.length > 20,
-  },
-  {
     name: 'NEXT_PUBLIC_COLLECTION_MINT',
     description: 'Mint de la collection NFT',
     validate: (val) => val && !val.includes('your-') && !val.includes('votre-') && val.length > 20,
@@ -106,6 +91,38 @@ requiredVars.forEach(({ name, description, validate, warning }) => {
     }
   }
 });
+
+// Vérifier Candy Machine IDs:
+// - soit NEXT_PUBLIC_CANDY_MACHINE_ID (global)
+// - soit les 3 variables par tier
+const isValidCandyMachineId = (val) =>
+  val && !val.includes('your-') && !val.includes('votre-') && val.length > 20;
+
+const globalCandyMachineId = process.env.NEXT_PUBLIC_CANDY_MACHINE_ID;
+const poorCandyMachineId = process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR;
+const midCandyMachineId = process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_MID;
+const richCandyMachineId = process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_RICH;
+
+const hasGlobalCM = isValidCandyMachineId(globalCandyMachineId);
+const hasTierCMs =
+  isValidCandyMachineId(poorCandyMachineId) &&
+  isValidCandyMachineId(midCandyMachineId) &&
+  isValidCandyMachineId(richCandyMachineId);
+
+if (hasGlobalCM) {
+  console.log('✅ NEXT_PUBLIC_CANDY_MACHINE_ID');
+} else if (hasTierCMs) {
+  console.log('✅ NEXT_PUBLIC_CANDY_MACHINE_ID_POOR');
+  console.log('✅ NEXT_PUBLIC_CANDY_MACHINE_ID_MID');
+  console.log('✅ NEXT_PUBLIC_CANDY_MACHINE_ID_RICH');
+} else {
+  console.error('❌ Candy Machine IDs manquants');
+  console.error('   Fournissez soit NEXT_PUBLIC_CANDY_MACHINE_ID (global), soit les 3 IDs par tier:');
+  console.error('   - NEXT_PUBLIC_CANDY_MACHINE_ID_POOR');
+  console.error('   - NEXT_PUBLIC_CANDY_MACHINE_ID_MID');
+  console.error('   - NEXT_PUBLIC_CANDY_MACHINE_ID_RICH');
+  hasErrors = true;
+}
 
 console.log('\n📋 Variables optionnelles:');
 

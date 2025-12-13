@@ -1,5 +1,6 @@
 "use client";
-import { useUnifiedWallet, useUnifiedWalletContext } from "@jup-ag/wallet-adapter";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useCallback, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import About from "../components/About";
@@ -8,7 +9,7 @@ import ImageSwitcher from "../components/ImageSwitcher";
 import TiersExplainer from "../components/TiersExplainer";
 import WalletConnect from "../components/WalletConnect";
 import logger from "../lib/logger-client";
-import { getCandyMachineIdForTier, mintNFT } from "../lib/utils";
+import { getCandyMachineIdForTier, getTierDisplayName, mintNFT } from "../lib/utils";
 
 type VerifyResponse = {
   tier: "TOO_POOR" | "POOR" | "MID" | "RICH";
@@ -24,8 +25,8 @@ type VerifyResponse = {
 };
 
 export default function HomePage() {
-  const { publicKey, wallet, connected, connect, connecting } = useUnifiedWallet();
-  const { setShowModal } = useUnifiedWalletContext();
+  const { publicKey, wallet, connected, connect, connecting } = useWallet();
+  const { setVisible } = useWalletModal();
   const [loading, setLoading] = useState(false);
   const [minting, setMinting] = useState(false);
   const [data, setData] = useState<VerifyResponse | null>(null);
@@ -54,14 +55,22 @@ export default function HomePage() {
 
     if (!finalWalletAddress) {
       if (!wallet?.adapter) {
-        setShowModal(true);
-        toast.error("Open the Unified Wallet button to connect first");
+        setVisible(true);
+        toast.error("Connect your wallet first");
         return;
       }
 
       try {
-        if (!wallet.adapter.connected && typeof connect === "function") {
-          await connect();
+        // Avoid double-connect (Standard Wallet will throw "requestAccounts already pending")
+        if (!wallet.adapter.connected) {
+          if (connecting) {
+            setVisible(true);
+            toast.error("Wallet connection already pending. Please confirm in your wallet.");
+            return;
+          }
+          setVisible(true);
+          toast.error("Please connect your wallet first.");
+          return;
         }
 
         if (!wallet.adapter.publicKey) {
@@ -111,7 +120,7 @@ export default function HomePage() {
       }
       const j: VerifyResponse = await res.json();
       setData(j);
-      toast.success(`You are ${j.tier} • $${j.balanceUSD.toLocaleString()}`);
+      toast.success(`You are ${getTierDisplayName(j.tier)} • $${j.balanceUSD.toLocaleString()}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Scan failed";
       setError(msg);
@@ -120,14 +129,14 @@ export default function HomePage() {
       setLoading(false);
       toast.dismiss(t);
     }
-  }, [walletAddress, wallet, connect, setShowModal, connecting]);
+  }, [walletAddress, wallet, connect, setVisible, connecting]);
 
   const handleMint = useCallback(async () => {
     if (!wallet?.adapter || !data) return;
 
     // Empêcher le mint pour TOO_POOR
     if (data.tier === "TOO_POOR") {
-      toast.error("😱 You need at least $10 to mint! Come back when you're less poor!");
+      toast.error("🥀 Oinkless — You need at least $10 to mint.");
       return;
     }
 
@@ -208,10 +217,10 @@ export default function HomePage() {
               </div>
             )}
             <ul className="text-gray-900 text-base md:text-lg space-y-1">
-              <li><span className="font-semibold text-red-600">TOO_POOR</span>: Less than $10 (No NFT)</li>
-              <li><span className="font-semibold text-yellow-600">POOR</span>: $10 – $1,000 (NFT #1-1000)</li>
-              <li><span className="font-semibold text-blue-600">MID</span>: $1,000 – $10,000 (NFT #1001-2000)</li>
-              <li><span className="font-semibold text-purple-600">RICH</span>: $10,000+ (NFT #2001-3000)</li>
+              <li><span className="font-semibold text-red-600">Oinkless</span>: Less than $10 (No NFT)</li>
+              <li><span className="font-semibold text-yellow-600">Piglets</span>: $10 – $1,000 (NFT #0-400)</li>
+              <li><span className="font-semibold text-blue-600">City Swine</span>: $1,000 – $10,000 (NFT #400-800)</li>
+              <li><span className="font-semibold text-purple-600">Oinklords</span>: $10,000+ (NFT #800-12000)</li>
             </ul>
 
             <div className="pt-2">
@@ -232,7 +241,7 @@ export default function HomePage() {
 
               {data && (
                 <div className={`inline-flex items-center gap-3 rounded-2xl border-2 border-black px-4 py-3 bg-gradient-to-r ${tierStyle} shadow-hard tilt animate-float`}>
-                  <span className="text-sm font-semibold tracking-widest uppercase">{data.tier}</span>
+                  <span className="text-sm font-semibold tracking-widest uppercase">{getTierDisplayName(data.tier)}</span>
                   <span className="text-sm text-black/80">${data.balanceUSD.toLocaleString()}</span>
                 </div>
               )}
@@ -271,14 +280,14 @@ export default function HomePage() {
       <section className="px-6 md:px-10 pb-20">
         <div className="max-w-6xl mx-auto grid md:grid-cols-4 gap-6">
           {[
-            { t: "TOO_POOR", d: "😱 HOW ARE YOU THAT POOR?! Get at least $10!", c: "from-red-300 to-red-200", nft: "No NFT" },
-            { t: "POOR", d: "Playful, gritty, and hungry for more. Mint NFT #1-1000", c: "from-rose-200 to-amber-100", nft: "#1-1000" },
-            { t: "MID", d: "Balanced, confident, and on the rise. Mint NFT #1001-2000", c: "from-sky-200 to-emerald-100", nft: "#1001-2000" },
-            { t: "RICH", d: "Bold, radiant, and unmistakable. Mint NFT #2001-3000", c: "from-fuchsia-200 to-cyan-100", nft: "#2001-3000" },
+            { t: "TOO_POOR", label: "Oinkless", d: "🥀 Oinkless — get at least $10 to mint.", c: "from-red-300 to-red-200", nft: "No NFT" },
+            { t: "POOR", label: "Piglets", d: "🐷 Piglets — Mint NFT #0-400", c: "from-rose-200 to-amber-100", nft: "#0-400" },
+            { t: "MID", label: "City Swine", d: "🐽 City Swine — Mint NFT #400-800", c: "from-sky-200 to-emerald-100", nft: "#400-800" },
+            { t: "RICH", label: "Oinklords", d: "🐗 Oinklords — Mint NFT #800-12000", c: "from-fuchsia-200 to-cyan-100", nft: "#800-12000" },
           ].map((x) => (
             <div key={x.t} className={`rounded-3xl border-2 border-black p-6 bg-gradient-to-br ${x.c} shadow-hard tilt transition-transform`}>
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold">{x.t}</h3>
+                <h3 className="text-2xl font-bold">{x.label}</h3>
                 <span className="text-xs uppercase tracking-widest">Tier</span>
               </div>
               <div className="mt-2 text-sm font-bold text-purple-700">NFT Range: {x.nft}</div>
@@ -290,7 +299,7 @@ export default function HomePage() {
                   className={`mt-5 ${data.tier === "TOO_POOR" ? "btn-disabled" : "btn-dark"}`}
                 >
                   {data.tier === "TOO_POOR"
-                    ? "❌ NO MINT FOR YOU!"
+                    ? "🥀 OINKLESS — NO MINT"
                     : minting ? "Minting…" : `Mint NFT #${data.nftNumber}`
                   }
                 </button>

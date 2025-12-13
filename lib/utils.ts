@@ -1,7 +1,7 @@
-import { mintV2, mplCandyMachine } from '@metaplex-foundation/mpl-candy-machine';
-import { findTokenRecordPda, mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata';
-import { findAssociatedTokenPda, setComputeUnitLimit } from '@metaplex-foundation/mpl-toolbox';
-import { generateSigner, publicKey, some, transactionBuilder } from '@metaplex-foundation/umi';
+import { mint, mintV2, mplCandyMachine } from '@metaplex-foundation/mpl-candy-machine';
+import { mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata';
+import { setComputeUnitLimit } from '@metaplex-foundation/mpl-toolbox';
+import { generateSigner, publicKey, transactionBuilder } from '@metaplex-foundation/umi';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import { walletAdapterIdentity } from '@metaplex-foundation/umi-signer-wallet-adapters';
 import { WalletAdapter } from '@solana/wallet-adapter-base';
@@ -15,18 +15,23 @@ import { logger } from './logger';
 import { getCachedPrice, setCachedPrice } from './price-cache';
 
 const PUBLIC_RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com';
-const CANDY_GUARD = process.env.NEXT_PUBLIC_CANDY_GUARD || '';
-const COLLECTION_MINT = process.env.NEXT_PUBLIC_COLLECTION_MINT || '';
+// Candy Guard ID (FORCÉ) — pour éviter les mauvaises configs locales.
+// Si vous voulez changer, modifiez ce fichier ou repassez à une lecture env.
+const CANDY_GUARD = 'ABtU6oQJqEWEDbuNGvUoqmJ9uux5m7L1iSZPUUKZZWJZ';
+// Collection Mint (FORCÉ) — correction CollectionKeyMismatch
+const COLLECTION_MINT = 'BFrUnaC3S7c5vD4BrySjhmVRLhEkLw74UhGVVX1FZxDE';
 const COLLECTION_UPDATE_AUTHORITY = process.env.NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY || '';
-const RULE_SET = process.env.NEXT_PUBLIC_RULE_SET || '';
 const COMPUTE_UNIT_LIMIT = Number(process.env.NEXT_PUBLIC_COMPUTE_UNIT_LIMIT ?? 400000);
 const COMPUTE_UNIT_MICROLAMPORTS = Number(process.env.NEXT_PUBLIC_COMPUTE_UNIT_MICROLAMPORTS ?? 0);
+// Candy Machine ID (FORCÉ) — pour éviter les mauvaises configs locales.
+// Si vous voulez changer, modifiez ce fichier ou repassez à une lecture env.
+const DEFAULT_CANDY_MACHINE_ID = '8U521JkUs3AyBJSq8Bm3TEnwgmNrbaVpkmx9tfQDCMU';
 
 const candyMachineByTier: Record<WalletTier, string | null> = {
   TOO_POOR: null,
-  POOR: process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR ?? null,
-  MID: process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_MID ?? null,
-  RICH: process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_RICH ?? null,
+  POOR: DEFAULT_CANDY_MACHINE_ID,
+  MID: DEFAULT_CANDY_MACHINE_ID,
+  RICH: DEFAULT_CANDY_MACHINE_ID,
 };
 
 // Validation des variables d'environnement critiques en production
@@ -42,14 +47,23 @@ if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
   if (!COLLECTION_UPDATE_AUTHORITY || COLLECTION_UPDATE_AUTHORITY.includes('your-') || COLLECTION_UPDATE_AUTHORITY.includes('votre-')) {
     missingVars.push('NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY');
   }
-  if (!candyMachineByTier.POOR || candyMachineByTier.POOR.includes('your-') || candyMachineByTier.POOR.includes('votre-')) {
-    missingVars.push('NEXT_PUBLIC_CANDY_MACHINE_ID_POOR');
-  }
-  if (!candyMachineByTier.MID || candyMachineByTier.MID.includes('your-') || candyMachineByTier.MID.includes('votre-')) {
-    missingVars.push('NEXT_PUBLIC_CANDY_MACHINE_ID_MID');
-  }
-  if (!candyMachineByTier.RICH || candyMachineByTier.RICH.includes('your-') || candyMachineByTier.RICH.includes('votre-')) {
-    missingVars.push('NEXT_PUBLIC_CANDY_MACHINE_ID_RICH');
+  // Candy Machine IDs: accepte soit une valeur globale, soit les 3 valeurs par tier
+  const hasGlobalCandyMachine = Boolean(
+    DEFAULT_CANDY_MACHINE_ID &&
+    !DEFAULT_CANDY_MACHINE_ID.includes('your-') &&
+    !DEFAULT_CANDY_MACHINE_ID.includes('votre-')
+  );
+
+  if (!hasGlobalCandyMachine) {
+    if (!process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR.includes('your-') || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR.includes('votre-')) {
+      missingVars.push('NEXT_PUBLIC_CANDY_MACHINE_ID_POOR');
+    }
+    if (!process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_MID || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_MID.includes('your-') || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_MID.includes('votre-')) {
+      missingVars.push('NEXT_PUBLIC_CANDY_MACHINE_ID_MID');
+    }
+    if (!process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_RICH || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_RICH.includes('your-') || process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_RICH.includes('votre-')) {
+      missingVars.push('NEXT_PUBLIC_CANDY_MACHINE_ID_RICH');
+    }
   }
 
   if (missingVars.length > 0) {
@@ -107,10 +121,26 @@ function toUmiInstruction(ix: SolanaInstruction) {
 // Configuration des tiers basés sur la valeur USD avec numéros NFT
 export const TIER_THRESHOLDS = {
   TOO_POOR: { min: 0, max: 10, nftRange: null },              // Moins de 10$ - pas de mint possible
-  POOR: { min: 10, max: 1000, nftRange: [1, 1000] },          // 10$ à 1000$ → NFT #1-1000
-  MID: { min: 1000, max: 10000, nftRange: [1001, 2000] },     // 1000$ à 10000$ → NFT #1001-2000
-  RICH: { min: 10000, max: null, nftRange: [2001, 3000] }     // 10000$+ → NFT #2001-3000
+  // Ranges de numéros NFT (demandés): POOR 0-400, MID 400-800, RICH 800-12000
+  POOR: { min: 10, max: 1000, nftRange: [0, 400] },
+  MID: { min: 1000, max: 10000, nftRange: [400, 800] },
+  RICH: { min: 10000, max: null, nftRange: [800, 12000] }
 } as const;
+
+export function getTierDisplayName(tier: string): string {
+  switch (tier) {
+    case 'TOO_POOR':
+      return 'Oinkless';
+    case 'POOR':
+      return 'Piglets';
+    case 'MID':
+      return 'City Swine';
+    case 'RICH':
+      return 'Oinklords';
+    default:
+      return tier;
+  }
+}
 
 // Récupère le prix SOL en USD via CoinGecko (fallback à 0 si échec)
 // Utilise un cache et un timeout pour éviter les blocages
@@ -487,7 +517,7 @@ export const getCandyMachineIdForTier = (tier: WalletTier): string | null => {
 
 export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => {
   try {
-    logger.log('🎯 MINT GRATUIT - Oinkonomics pNFT (mintV2 avec Token Record)...', { candyMachineId });
+    logger.log('🎯 MINT GRATUIT - Oinkonomics NFT...', { candyMachineId });
 
     if (!wallet || !wallet.publicKey) {
       throw new Error('Wallet non connecté');
@@ -497,63 +527,56 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       throw new Error('Configuration mint incomplète. Vérifiez les variables NEXT_PUBLIC_COLLECTION_MINT et NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY.');
     }
 
-    if (!CANDY_GUARD) {
-      throw new Error('Configuration Candy Guard manquante. Vérifiez NEXT_PUBLIC_CANDY_GUARD.');
-    }
-
     // Initialiser UMI avec wallet adapter
     const umi = createUmiInstance(wallet);
 
     // Informations de la Candy Machine Oinkonomics
     const candyMachine = publicKey(candyMachineId);
-    const candyGuard = publicKey(CANDY_GUARD);
     const collectionMint = publicKey(COLLECTION_MINT);
     const collectionUpdateAuthority = publicKey(COLLECTION_UPDATE_AUTHORITY);
 
     // Générer le NFT mint
     const nftMint = generateSigner(umi);
 
-    // ✅ CRITIQUE: Calculer l'Associated Token Account (ATA) pour le propriétaire
-    // Le Token Record doit être calculé avec l'ATA, pas avec la clé publique directement
-    const [tokenAccount] = findAssociatedTokenPda(umi, {
-      mint: nftMint.publicKey,
-      owner: umi.identity.publicKey
-    });
-
-    // ✅ CRITIQUE: Calculer le Token Record PDA pour pNFT avec l'ATA
-    // Les pNFTs nécessitent un Token Record basé sur le token account, pas la clé publique
-    const [tokenRecord] = findTokenRecordPda(umi, {
-      mint: nftMint.publicKey,
-      token: tokenAccount
-    });
-
-    logger.log('🔧 Configuration Candy Machine (pNFT):', {
+    logger.log('🔧 Configuration Candy Machine:', {
       candyMachine: candyMachine.toString(),
-      candyGuard: candyGuard.toString(),
+      candyGuard: CANDY_GUARD ? CANDY_GUARD : '(none)',
       collectionMint: collectionMint.toString(),
       collectionUpdateAuthority: collectionUpdateAuthority.toString(),
-      nftMint: nftMint.publicKey.toString(),
-      tokenAccount: tokenAccount.toString(),
-      tokenRecord: tokenRecord.toString()
+      nftMint: nftMint.publicKey.toString()
     });
 
-    // ✅ Utiliser mintV2 avec le Candy Guard actif ET le Token Record
-    const result = await transactionBuilder()
-      .add(setComputeUnitLimit(umi, { units: COMPUTE_UNIT_LIMIT }))
-      .add(
-        mintV2(umi, {
-          candyMachine,
-          candyGuard,
-          nftMint,
-          collectionMint,
-          collectionUpdateAuthority,
-          tokenRecord, // ✅ CRITIQUE: Token Record PDA pour pNFT
-          mintArgs: {
-            candyGuard: some({}) // Pas de guards actifs, mais le Candy Guard existe
-          }
-        })
-      )
-      .sendAndConfirm(umi);
+    // Mint:
+    // - si NEXT_PUBLIC_CANDY_GUARD est configuré => mintV2 (Candy Guard actif)
+    // - sinon => mint (Candy Machine sans guard)
+    const builder = transactionBuilder().add(setComputeUnitLimit(umi, { units: COMPUTE_UNIT_LIMIT }));
+
+    const result = CANDY_GUARD
+      ? await builder
+        .add(
+          mintV2(umi, {
+            candyMachine,
+            candyGuard: publicKey(CANDY_GUARD),
+            nftMint,
+            collectionMint,
+            collectionUpdateAuthority,
+            // IMPORTANT: si des guards (allowList/solPayment/...) sont actifs on-chain,
+            // il faut fournir les mintArgs correspondants. Ici on force le mint public/gratuit,
+            // donc aucun solPayment/allowList n'est envoyé.
+            mintArgs: {}
+          } as any)
+        )
+        .sendAndConfirm(umi)
+      : await builder
+        .add(
+          mint(umi, {
+            candyMachine,
+            nftMint: nftMint.publicKey,
+            collectionMint,
+            collectionUpdateAuthority,
+          } as any)
+        )
+        .sendAndConfirm(umi);
 
     logger.log('✅ NFT Oinkonomics GRATUIT minté avec succès !', {
       signature: result.signature.toString()
@@ -577,8 +600,16 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
       const errorStr = error.toString();
       const errorMessageLower = error.message.toLowerCase();
 
+      // Allowlist / Guard
+      if (errorStr.includes('AddressNotFoundInAllowedList') || errorMessageLower.includes('allowed list')) {
+        errorMessage = '🚫 Votre wallet n’est pas dans l’allowlist. Pour un mint public/gratuit, retirez le guard allowList (Candy Guard) sur la Candy Machine.';
+      }
+      // pNFT / Token Record
+      else if (errorStr.includes('MissingTokenRecord') || errorMessageLower.includes('missing token record')) {
+        errorMessage = '🚫 Cette Candy Machine semble configurée en pNFT (Programmable NFTs) / TokenRecord. Pour des NFTs standards, il faut redéployer ou reconfigurer la Candy Machine (token standard = NonFungible) et retirer les guards liés.';
+      }
       // Erreur spécifique de Candy Guard mal configuré
-      if (errorStr.includes('AccountOwnedByWrongProgram') ||
+      else if (errorStr.includes('AccountOwnedByWrongProgram') ||
         errorStr.includes('3007') ||
         errorMessageLower.includes('owned by a different program')) {
         errorMessage = '🚫 Configuration Candy Guard incorrecte. Contactez le support technique.';
@@ -594,10 +625,6 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
         errorMessageLower.includes('empty') ||
         errorMessageLower.includes('no items remaining')) {
         errorMessage = '😱 Collection épuisée ! Plus de NFTs disponibles dans cette Candy Machine';
-      }
-      // Problème de Rule Set
-      else if (errorMessageLower.includes('rule') || errorMessageLower.includes('ruleset')) {
-        errorMessage = '🔒 Problème avec le Rule Set pNFT - contactez le support';
       }
       // Erreur générique avec détails limités
       else {
