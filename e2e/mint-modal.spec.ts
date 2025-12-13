@@ -16,5 +16,3 @@ test("mint modal workflow (mock): mint -> shows minted image + explorer button",
   await expect(img).toBeVisible();
   await expect(img).toHaveAttribute("src", "https://example.com/e2e-nft.png");
 });
-
-

@@ -1,7 +1,7 @@
 "use client";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import About from "../components/About";
 import Community from "../components/Community";
@@ -34,6 +34,8 @@ export default function HomePage() {
   const [mintSuccess, setMintSuccess] = useState(false);
   const [mintModalOpen, setMintModalOpen] = useState(false);
   const [lastMintSignature, setLastMintSignature] = useState<string | null>(null);
+  const lastAutoScannedWalletRef = useRef<string | null>(null);
+  const autoOpenModalAfterScanRef = useRef(false);
 
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "";
   const derivedClusterLabel = rpcUrl.includes("devnet")
@@ -132,6 +134,11 @@ export default function HomePage() {
       const j: VerifyResponse = await res.json();
       setData(j);
       toast.success(`You are ${getTierDisplayName(j.tier)} • $${j.balanceUSD.toLocaleString()}`);
+      if (autoOpenModalAfterScanRef.current) {
+        autoOpenModalAfterScanRef.current = false;
+        // Ouvrir directement la modale pour un flow "connect -> scan -> mint"
+        if (j.tier !== "TOO_POOR") setMintModalOpen(true);
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Scan failed";
       setError(msg);
@@ -141,6 +148,25 @@ export default function HomePage() {
       toast.dismiss(t);
     }
   }, [walletAddress, wallet, setVisible, connecting]);
+
+  // Flow UX demandé: après "Connect", on scanne automatiquement une fois et on ouvre la modale.
+  useEffect(() => {
+    if (!connected) return;
+    if (!walletAddress) return;
+    if (loading) return;
+    if (lastAutoScannedWalletRef.current === walletAddress) return;
+
+    // Si on a déjà les données pour ce wallet, ne pas rescan.
+    if (data?.walletAddress === walletAddress) {
+      lastAutoScannedWalletRef.current = walletAddress;
+      return;
+    }
+
+    lastAutoScannedWalletRef.current = walletAddress;
+    autoOpenModalAfterScanRef.current = true;
+    // lancer le scan
+    void handleScan();
+  }, [connected, walletAddress, loading, data?.walletAddress, handleScan]);
 
   const openMintModal = useCallback(() => {
     if (!data) {

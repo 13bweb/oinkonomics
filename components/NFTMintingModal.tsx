@@ -69,6 +69,9 @@ export default function NFTMintingModal({
   const [mintedImageUrl, setMintedImageUrl] = useState<string | null>(null);
   const [mintedName, setMintedName] = useState<string | null>(null);
   const [loadingMintedPreview, setLoadingMintedPreview] = useState(false);
+  const [collectionImageUrl, setCollectionImageUrl] = useState<string | null>(null);
+  const [collectionName, setCollectionName] = useState<string | null>(null);
+  const [loadingCollectionPreview, setLoadingCollectionPreview] = useState(false);
 
   const canMint = useMemo(() => {
     if (!tierInfo) return false;
@@ -97,6 +100,9 @@ export default function NFTMintingModal({
     setMintedImageUrl(null);
     setMintedName(null);
     setLoadingMintedPreview(false);
+    setCollectionImageUrl(null);
+    setCollectionName(null);
+    setLoadingCollectionPreview(false);
   }, []);
 
   useEffect(() => {
@@ -195,6 +201,36 @@ export default function NFTMintingModal({
     []
   );
 
+  // Pré-mint: on affiche une image réelle (celle de la collection), pas un placeholder.
+  useEffect(() => {
+    if (!open) return;
+    if (mintedImageUrl) return; // on a déjà l'image finale
+    if (loadingCollectionPreview) return;
+    if (collectionImageUrl) return;
+
+    const collectionMint = (process.env.NEXT_PUBLIC_COLLECTION_MINT ?? "").trim();
+    if (!collectionMint) return;
+
+    let cancelled = false;
+    setLoadingCollectionPreview(true);
+    (async () => {
+      try {
+        const res = await fetchMintedFromApi(collectionMint);
+        if (cancelled) return;
+        if (res?.name) setCollectionName(res.name);
+        if (res?.imageUrl) setCollectionImageUrl(res.imageUrl);
+      } catch {
+        // si ça échoue on ne bloque pas l'UX (l'image post-mint reste l'objectif principal)
+      } finally {
+        if (!cancelled) setLoadingCollectionPreview(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, mintedImageUrl, fetchMintedFromApi, collectionImageUrl, loadingCollectionPreview]);
+
   useEffect(() => {
     if (!open) return;
     if (phase !== "success") return;
@@ -273,15 +309,25 @@ export default function NFTMintingModal({
                 loading="lazy"
                 referrerPolicy="no-referrer"
               />
+            ) : collectionImageUrl ? (
+              <img
+                src={collectionImageUrl}
+                alt={collectionName ?? "Collection preview"}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-center px-6">
                 <div>
-                  <div className="font-pangolin font-bold text-black">Preview</div>
+                  <div className="font-pangolin font-bold text-black">Loading…</div>
                   <div className="text-sm text-gray-700">
-                    L’image réelle s’affiche juste après le mint (metadata on-chain).
+                    Chargement de l’image on-chain (collection / NFT minté).
                   </div>
-                  {loadingMintedPreview && (
-                    <div className="mt-2 text-xs text-gray-600">Loading minted NFT image…</div>
+                  {(loadingCollectionPreview || loadingMintedPreview) && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      {loadingMintedPreview ? "Loading minted NFT image…" : "Loading collection preview…"}
+                    </div>
                   )}
                 </div>
               </div>
@@ -305,6 +351,11 @@ export default function NFTMintingModal({
             {mintedName && (
               <div className="mt-1 text-xs text-gray-700 font-pangolin">
                 Name: <span className="font-bold text-black">{mintedName}</span>
+              </div>
+            )}
+            {!mintedName && collectionName && (
+              <div className="mt-1 text-xs text-gray-700 font-pangolin">
+                Collection: <span className="font-bold text-black">{collectionName}</span>
               </div>
             )}
             {tierInfo?.nftRange && (

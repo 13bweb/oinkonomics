@@ -62,5 +62,3 @@ describe("NFTMintingModal", () => {
     expect(screen.getByText(/Oinkonomics #1/i)).toBeInTheDocument();
   });
 });
-
-

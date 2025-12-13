@@ -15,9 +15,10 @@ import { logger } from './logger';
 import { getCachedPrice, setCachedPrice } from './price-cache';
 
 const PUBLIC_RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com';
-// Candy Guard ID (FORCÉ) — pour éviter les mauvaises configs locales.
-// Si vous voulez changer, modifiez ce fichier ou repassez à une lecture env.
-const CANDY_GUARD = 'ABtU6oQJqEWEDbuNGvUoqmJ9uux5m7L1iSZPUUKZZWJZ';
+// Candy Guard ID (OPTIONNEL).
+// - Si la Candy Machine est "guarded", configurez NEXT_PUBLIC_CANDY_GUARD.
+// - Si vous voulez des NFTs standards sans guard, laissez vide.
+const CANDY_GUARD = (process.env.NEXT_PUBLIC_CANDY_GUARD ?? "").trim();
 // Collection Mint (FORCÉ) — correction CollectionKeyMismatch
 const COLLECTION_MINT = 'BFrUnaC3S7c5vD4BrySjhmVRLhEkLw74UhGVVX1FZxDE';
 const COLLECTION_UPDATE_AUTHORITY = process.env.NEXT_PUBLIC_COLLECTION_UPDATE_AUTHORITY || '';
