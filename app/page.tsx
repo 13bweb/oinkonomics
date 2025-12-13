@@ -6,10 +6,11 @@ import toast, { Toaster } from "react-hot-toast";
 import About from "../components/About";
 import Community from "../components/Community";
 import ImageSwitcher from "../components/ImageSwitcher";
+import NFTMintingModal from "../components/NFTMintingModal";
 import TiersExplainer from "../components/TiersExplainer";
 import WalletConnect from "../components/WalletConnect";
 import logger from "../lib/logger-client";
-import { getCandyMachineIdForTier, getTierDisplayName, mintNFT } from "../lib/utils";
+import { getTierDisplayName } from "../lib/utils";
 
 type VerifyResponse = {
   tier: "TOO_POOR" | "POOR" | "MID" | "RICH";
@@ -28,10 +29,11 @@ export default function HomePage() {
   const { publicKey, wallet, connected, connect, connecting } = useWallet();
   const { setVisible } = useWalletModal();
   const [loading, setLoading] = useState(false);
-  const [minting, setMinting] = useState(false);
   const [data, setData] = useState<VerifyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mintSuccess, setMintSuccess] = useState(false);
+  const [mintModalOpen, setMintModalOpen] = useState(false);
+  const [lastMintSignature, setLastMintSignature] = useState<string | null>(null);
 
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "";
   const derivedClusterLabel = rpcUrl.includes("devnet")
@@ -138,46 +140,24 @@ export default function HomePage() {
       setLoading(false);
       toast.dismiss(t);
     }
-  }, [walletAddress, wallet, connect, setVisible, connecting]);
+  }, [walletAddress, wallet, setVisible, connecting]);
 
-  const handleMint = useCallback(async () => {
-    if (!wallet?.adapter || !data) return;
-
-    // Empêcher le mint pour TOO_POOR
+  const openMintModal = useCallback(() => {
+    if (!data) {
+      toast.error("Please scan your wallet first.");
+      return;
+    }
+    if (!wallet?.adapter?.publicKey) {
+      setVisible(true);
+      toast.error("Please connect your wallet first.");
+      return;
+    }
     if (data.tier === "TOO_POOR") {
       toast.error("🥀 Oinkless — You need at least $10 to mint.");
       return;
     }
-
-    setMinting(true);
-    const t = toast.loading(`Minting NFT #${data.nftNumber}…`);
-
-    try {
-      const candyMachineId = getCandyMachineIdForTier(data.tier);
-
-      if (!candyMachineId) {
-        throw new Error(`Missing Candy Machine ID for tier ${data.tier}`);
-      }
-      logger.log('🎯 Tentative de mint:', { tier: data.tier, nftNumber: data.nftNumber, candyMachineId });
-
-      const res = await mintNFT(wallet.adapter, candyMachineId);
-
-      if (res.success) {
-        toast.success(res.message || `🎉 NFT #${data.nftNumber} minté avec succès !`);
-        logger.log('✅ Mint réussi:', res);
-        setMintSuccess(true); // Marquer le mint comme réussi pour cacher le bouton
-      } else {
-        throw new Error(res.error || 'Échec du mint');
-      }
-    } catch (e: unknown) {
-      logger.error('❌ Erreur mint:', e);
-      const errorMessage = e instanceof Error ? e.message : "Erreur inconnue";
-      toast.error(`❌ Échec du mint: ${errorMessage}`);
-    } finally {
-      setMinting(false);
-      toast.dismiss(t);
-    }
-  }, [wallet?.adapter, data]);
+    setMintModalOpen(true);
+  }, [data, wallet?.adapter?.publicKey, setVisible]);
 
   const tierStyle = useMemo(() => {
     if (!data?.tier) return "";
@@ -190,6 +170,29 @@ export default function HomePage() {
   return (
     <main className="min-h-screen relative overflow-hidden">
       <Toaster position="top-center" />
+      <NFTMintingModal
+        open={mintModalOpen}
+        onClose={() => setMintModalOpen(false)}
+        walletAdapter={wallet?.adapter ?? null}
+        tierInfo={
+          data
+            ? {
+                tier: data.tier,
+                walletAddress: data.walletAddress,
+                balance: data.balance,
+                balanceUSD: data.balanceUSD,
+                nftNumber: data.nftNumber ?? null,
+                nftRange: data.nftRange,
+              }
+            : null
+        }
+        rpcUrl={rpcUrl}
+        onMinted={(sig) => {
+          setLastMintSignature(sig);
+          setMintSuccess(true);
+          setMintModalOpen(false);
+        }}
+      />
       {/* WalletConnect referral card */}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-white/40 dark:via-white/5 dark:to-white/10" />
@@ -303,13 +306,13 @@ export default function HomePage() {
               <p className="mt-3 text-gray-800">{x.d}</p>
               {data?.tier && data.tier === x.t && !mintSuccess && (
                 <button
-                  onClick={handleMint}
-                  disabled={minting || data.tier === "TOO_POOR"}
+                  onClick={openMintModal}
+                  disabled={data.tier === "TOO_POOR"}
                   className={`mt-5 ${data.tier === "TOO_POOR" ? "btn-disabled" : "btn-dark"}`}
                 >
                   {data.tier === "TOO_POOR"
                     ? "🥀 OINKLESS — NO MINT"
-                    : minting ? "Minting…" : `Mint NFT #${data.nftNumber}`
+                    : `Mint NFT #${data.nftNumber}`
                   }
                 </button>
               )}
@@ -317,6 +320,20 @@ export default function HomePage() {
                 <div className="mt-5 px-4 py-2 bg-green-500 text-white rounded-lg text-center font-bold">
                   ✅ NFT Minté avec succès !
                 </div>
+              )}
+              {data?.tier && data.tier === x.t && mintSuccess && lastMintSignature && (
+                <button
+                  onClick={() =>
+                    window.open(
+                      `https://explorer.solana.com/tx/${lastMintSignature}${explorerClusterParam}`,
+                      "_blank",
+                      "noopener,noreferrer"
+                    )
+                  }
+                  className="mt-3 w-full px-4 py-2 rounded-lg border-2 border-black bg-white hover:bg-gray-50 font-bold"
+                >
+                  View tx
+                </button>
               )}
             </div>
           ))}

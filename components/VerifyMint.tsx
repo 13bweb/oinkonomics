@@ -3,7 +3,8 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import React, { useState } from "react";
 import { toast } from "react-hot-toast";
 import logger from "../lib/logger-client";
-import { getTierDisplayName, mintNFT } from "../lib/utils";
+import { getTierDisplayName } from "../lib/utils";
+import NFTMintingModal from "./NFTMintingModal";
 
 type Status = "idle" | "loading" | "verified" | "error";
 type Tier = "TOO_POOR" | "POOR" | "MID" | "RICH";
@@ -26,6 +27,8 @@ const VerifyMint: React.FC = () => {
   const [status, setStatus] = useState<Status>("idle");
   const [tierInfo, setTierInfo] = useState<TierInfo | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mintModalOpen, setMintModalOpen] = useState(false);
+  const [lastMintSignature, setLastMintSignature] = useState<string | null>(null);
 
   const handleVerify = async () => {
     if (!publicKey) {
@@ -69,52 +72,16 @@ const VerifyMint: React.FC = () => {
     }
   };
 
-  const handleMint = async () => {
+  const openMintModal = () => {
     if (!wallet?.adapter || !tierInfo) {
       toast.error("Wallet or tier info not available");
       return;
     }
-
-    // Empêcher le mint pour TOO_POOR
     if (tierInfo.tier === "TOO_POOR") {
       toast.error("🥀 Oinkless — You need at least $10 to mint.");
       return;
     }
-
-    // Récupérer la Candy Machine ID depuis l'environnement (fallback global)
-    const candyMachineId =
-      tierInfo.candyMachineId ||
-      process.env.NEXT_PUBLIC_CANDY_MACHINE_ID ||
-      process.env.NEXT_PUBLIC_CANDY_MACHINE_ID_POOR;
-
-    if (!candyMachineId) {
-      toast.error("Configuration Candy Machine manquante");
-      return;
-    }
-
-    setStatus("loading");
-
-    try {
-      logger.log('🎯 VerifyMint - Tentative de mint RÉEL:', {
-        tier: tierInfo.tier,
-        nftNumber: tierInfo.nftNumber,
-        candyMachine: candyMachineId
-      });
-
-      const result = await mintNFT(wallet.adapter, candyMachineId);
-
-      if (result.success) {
-        toast.success(result.message || `🎉 NFT #${tierInfo.nftNumber} minté !`);
-        setStatus("verified");
-      } else {
-        throw new Error(result.error || 'Échec du mint');
-      }
-    } catch (error) {
-      logger.error('❌ VerifyMint - Erreur:', error);
-      const message = error instanceof Error ? error.message : "Minting failed";
-      toast.error(`❌ ${message}`);
-      setStatus("error");
-    }
+    setMintModalOpen(true);
   };
 
   const getTierLabel = (tier: Tier) => {
@@ -149,6 +116,27 @@ const VerifyMint: React.FC = () => {
 
   return (
     <section className="max-w-4xl mx-auto px-4 py-8 relative z-10">
+      <NFTMintingModal
+        open={mintModalOpen}
+        onClose={() => setMintModalOpen(false)}
+        walletAdapter={wallet?.adapter ?? null}
+        tierInfo={
+          tierInfo
+            ? {
+                tier: tierInfo.tier,
+                walletAddress: publicKey?.toBase58() ?? "",
+                balance: tierInfo.balance,
+                balanceUSD: tierInfo.balanceUSD,
+                nftNumber: tierInfo.nftNumber ?? null,
+                nftRange: tierInfo.nftRange,
+              }
+            : null
+        }
+        onMinted={(sig) => {
+          setLastMintSignature(sig);
+          setMintModalOpen(false);
+        }}
+      />
       {!connected ? (
         <div className="card-cartoon p-8 bg-pastel-pink transform rotate-1">
           <h2 className="text-3xl font-pangolin font-bold text-center text-black mb-4">
@@ -223,9 +211,30 @@ const VerifyMint: React.FC = () => {
                     <p className="text-lg font-pangolin text-gray-700 mb-2">
                       🎉 Mint GRATUIT : <strong>0 SOL</strong> (seulement ~0.001 SOL de frais réseau)
                     </p>
-                    <button onClick={handleMint} className={`blob-button ${getTierColor(tierInfo.tier)} text-black font-pangolin font-bold text-xl px-8 py-4`}>
+                    <button onClick={openMintModal} className={`blob-button ${getTierColor(tierInfo.tier)} text-black font-pangolin font-bold text-xl px-8 py-4`}>
                       <span className="relative z-10">🐷 Minter NFT #{tierInfo.nftNumber} GRATUITEMENT 🐷</span>
                     </button>
+                    {lastMintSignature && (
+                      <button
+                        type="button"
+                        className="mt-3 px-4 py-2 rounded-xl border-2 border-black bg-white hover:bg-gray-50 font-pangolin font-bold"
+                        onClick={() => {
+                          const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "";
+                          const cluster = rpcUrl.includes("devnet")
+                            ? "devnet"
+                            : rpcUrl.includes("testnet")
+                              ? "testnet"
+                              : "mainnet-beta";
+                          window.open(
+                            `https://explorer.solana.com/tx/${lastMintSignature}?cluster=${cluster}`,
+                            "_blank",
+                            "noopener,noreferrer"
+                          );
+                        }}
+                      >
+                        View tx
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
