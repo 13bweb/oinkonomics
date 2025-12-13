@@ -588,6 +588,7 @@ export const mintNFT = async (wallet: WalletAdapter, candyMachineId: string) => 
     return {
       success: true,
       signature: result.signature.toString(),
+      mintAddress: nftMint.publicKey.toString(),
       message: `🎉 NFT Oinkonomics minté gratuitement ! Signature: ${result.signature.toString().substring(0, 8)}...`
     };
 

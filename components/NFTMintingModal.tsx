@@ -22,9 +22,10 @@ type Props = {
   walletAdapter: WalletAdapter | null;
   tierInfo: MintModalTierInfo | null;
   rpcUrl?: string;
-  previewImageUrl?: string;
   appName?: string;
   onMinted?: (signature: string) => void;
+  mintFn?: typeof mintNFT;
+  fetchMintedNft?: (mintAddress: string) => Promise<{ imageUrl?: string; name?: string }>;
 };
 
 type Step = 1 | 2 | 3 | 4;
@@ -55,14 +56,19 @@ export default function NFTMintingModal({
   walletAdapter,
   tierInfo,
   rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "",
-  previewImageUrl = process.env.NEXT_PUBLIC_NFT_PREVIEW_IMAGE_URL ?? "https://i.ibb.co/HTVh40XZ/image.png",
   appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Oinkonomics",
   onMinted,
+  mintFn = mintNFT,
+  fetchMintedNft,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
+  const [mintAddress, setMintAddress] = useState<string | null>(null);
+  const [mintedImageUrl, setMintedImageUrl] = useState<string | null>(null);
+  const [mintedName, setMintedName] = useState<string | null>(null);
+  const [loadingMintedPreview, setLoadingMintedPreview] = useState(false);
 
   const canMint = useMemo(() => {
     if (!tierInfo) return false;
@@ -87,6 +93,10 @@ export default function NFTMintingModal({
     setStep(1);
     setError(null);
     setSignature(null);
+    setMintAddress(null);
+    setMintedImageUrl(null);
+    setMintedName(null);
+    setLoadingMintedPreview(false);
   }, []);
 
   useEffect(() => {
@@ -148,7 +158,7 @@ export default function NFTMintingModal({
       await new Promise((r) => setTimeout(r, 200));
       setStep(3);
 
-      const res = await mintNFT(walletAdapter, candyMachineId);
+      const res = await mintFn(walletAdapter, candyMachineId);
 
       setStep(4);
 
@@ -157,6 +167,7 @@ export default function NFTMintingModal({
       }
 
       setSignature(res.signature);
+      if ((res as any).mintAddress) setMintAddress(String((res as any).mintAddress));
       setPhase("success");
       toast.success("🎉 Mint successful!");
       onMinted?.(res.signature);
@@ -168,7 +179,57 @@ export default function NFTMintingModal({
     } finally {
       toast.dismiss(toastId);
     }
-  }, [tierInfo, walletAdapter, candyMachineId, onMinted]);
+  }, [tierInfo, walletAdapter, candyMachineId, onMinted, mintFn]);
+
+  const fetchMintedFromApi = useCallback(
+    async (m: string) => {
+      const r = await fetch("/api/nft-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mintAddress: m }),
+      });
+      const j = await r.json().catch(() => null) as any;
+      if (!r.ok || !j?.ok) throw new Error(j?.error || "Failed to load minted NFT metadata");
+      return { imageUrl: j.imageUrl as string | undefined, name: j.name as string | undefined };
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    if (phase !== "success") return;
+    if (!mintAddress) return;
+    if (mintedImageUrl) return;
+
+    let cancelled = false;
+    setLoadingMintedPreview(true);
+
+    (async () => {
+      try {
+        const impl = fetchMintedNft ?? fetchMintedFromApi;
+
+        // Le metadata peut mettre quelques secondes à être lisible; on retry doucement.
+        for (let i = 0; i < 8; i++) {
+          const res = await impl(mintAddress);
+          if (cancelled) return;
+          if (res?.name) setMintedName(res.name);
+          if (res?.imageUrl) {
+            setMintedImageUrl(res.imageUrl);
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 750));
+        }
+      } catch {
+        // On reste silencieux: l'explorer link suffit si l'image n'est pas dispo immédiatement.
+      } finally {
+        if (!cancelled) setLoadingMintedPreview(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, phase, mintAddress, mintedImageUrl, fetchMintedNft, fetchMintedFromApi]);
 
   if (!open) return null;
 
@@ -204,13 +265,27 @@ export default function NFTMintingModal({
 
         <div className="rounded-xl border-2 border-black overflow-hidden mb-4 bg-gradient-to-br from-pink-100 via-yellow-100 to-purple-100">
           <div className="w-full h-44 sm:h-52 bg-black/10">
-            <img
-              src={previewImageUrl}
-              alt="NFT preview"
-              className="w-full h-full object-cover"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
+            {mintedImageUrl ? (
+              <img
+                src={mintedImageUrl}
+                alt={mintedName ?? "Minted NFT"}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-center px-6">
+                <div>
+                  <div className="font-pangolin font-bold text-black">Preview</div>
+                  <div className="text-sm text-gray-700">
+                    L’image réelle s’affiche juste après le mint (metadata on-chain).
+                  </div>
+                  {loadingMintedPreview && (
+                    <div className="mt-2 text-xs text-gray-600">Loading minted NFT image…</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="p-4">
             <div className="flex items-center justify-between gap-3">
@@ -227,6 +302,11 @@ export default function NFTMintingModal({
                 </span>
               </div>
             </div>
+            {mintedName && (
+              <div className="mt-1 text-xs text-gray-700 font-pangolin">
+                Name: <span className="font-bold text-black">{mintedName}</span>
+              </div>
+            )}
             {tierInfo?.nftRange && (
               <div className="mt-1 text-xs text-gray-700 font-pangolin">
                 Range: #{tierInfo.nftRange[0]}–{tierInfo.nftRange[1]}
@@ -235,6 +315,11 @@ export default function NFTMintingModal({
             <div className="mt-2 text-xs text-gray-700 font-mono break-all">
               {tierInfo?.walletAddress ? `Wallet: ${tierInfo.walletAddress}` : ""}
             </div>
+            {mintAddress && (
+              <div className="mt-2 text-[11px] text-gray-700 font-mono break-all">
+                Mint: {mintAddress}
+              </div>
+            )}
           </div>
         </div>
 
@@ -309,5 +394,3 @@ export default function NFTMintingModal({
     </div>
   );
 }
-
-

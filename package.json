@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:e2e": "playwright test",
     "validate-env": "node scripts/validate-env.js",
     "prebuild": "npm run validate-env"
   },
@@ -35,6 +38,8 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^20.19.24",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -44,6 +49,9 @@
     "dotenv": "^17.2.3",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
+    "@playwright/test": "^1.55.0",
     "pino-pretty": "^11.2.1",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
