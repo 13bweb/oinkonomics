@@ -52,8 +52,21 @@ const WalletNotificationHandler: FC = () => {
 };
 
 const WalletContextProvider: FC<{ children: React.ReactNode; }> = ({ children }) => {
-	const network = WalletAdapterNetwork.Mainnet;
-	const endpoint = useMemo(() => process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network), [network]);
+	const endpointFromEnv = process.env.NEXT_PUBLIC_RPC_URL || '';
+
+	const network = useMemo(() => {
+		// Si le RPC indique explicitement le cluster, on s'aligne dessus.
+		if (endpointFromEnv.includes('devnet')) return WalletAdapterNetwork.Devnet;
+		if (endpointFromEnv.includes('testnet')) return WalletAdapterNetwork.Testnet;
+
+		// Sinon, fallback à l'étiquette si elle est définie (sinon MAINNET par défaut)
+		const label = (process.env.NEXT_PUBLIC_SOLANA_CLUSTER_LABEL || 'MAINNET').toUpperCase();
+		if (label === 'DEVNET') return WalletAdapterNetwork.Devnet;
+		if (label === 'TESTNET') return WalletAdapterNetwork.Testnet;
+		return WalletAdapterNetwork.Mainnet;
+	}, [endpointFromEnv]);
+
+	const endpoint = useMemo(() => endpointFromEnv || clusterApiUrl(network), [endpointFromEnv, network]);
 
 	const wallets = useMemo(
 		() => [

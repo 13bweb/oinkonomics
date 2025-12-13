@@ -3,6 +3,9 @@ import { getCandyMachineIdForTier, getTierDisplayName, verifyWalletTier } from '
 import { checkRateLimit } from '../../../lib/rate-limit';
 import { logger } from '../../../lib/logger';
 
+// Force Node.js runtime (lib/utils utilise 'crypto' côté serveur)
+export const runtime = 'nodejs';
+
 // Constantes de sécurité
 const MAX_BODY_SIZE = 1024; // 1KB max pour le body
 
@@ -17,19 +20,64 @@ function isValidSolanaAddress(address: string): boolean {
 }
 
 // Protection CSRF basique - vérifier l'origine
-function isValidOrigin(origin: string | null, host: string | null): boolean {
-  if (!origin || !host) return false;
+function normalizeHostname(hostname: string): string {
+  return hostname.trim().toLowerCase().replace(/^www\./, '');
+}
+
+function safeHostnameFromUrl(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isValidOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  const host = request.headers.get('host');
+  const forwardedHost = request.headers.get('x-forwarded-host');
 
   // En développement, accepter localhost
   if (process.env.NODE_ENV === 'development') {
-    return origin.includes('localhost') || origin.includes('127.0.0.1');
+    const value = origin ?? referer ?? '';
+    return value.includes('localhost') || value.includes('127.0.0.1');
   }
 
-  // En production, vérifier que l'origine correspond au host
+  // En production, accepter uniquement les origines attendues.
+  // Objectif: éviter les faux négatifs sur Vercel (www/custom domain/preview) tout en gardant une protection CSRF.
   try {
-    const originUrl = new URL(origin);
-    const hostUrl = new URL(`https://${host}`);
-    return originUrl.hostname === hostUrl.hostname;
+    const checkUrl = origin ?? referer;
+    if (!checkUrl) return false;
+
+    const originHostnameRaw = safeHostnameFromUrl(checkUrl);
+    if (!originHostnameRaw) return false;
+
+    const originHostname = normalizeHostname(originHostnameRaw);
+
+    const allowed = new Set<string>();
+
+    if (host) allowed.add(normalizeHostname(host.split(':')[0]));
+    if (forwardedHost) {
+      // x-forwarded-host peut contenir plusieurs hôtes
+      forwardedHost
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean)
+        .forEach((h) => allowed.add(normalizeHostname(h.split(':')[0])));
+    }
+
+    // Allowlist via env (recommandé en prod)
+    const appUrlHost = process.env.NEXT_PUBLIC_APP_URL ? safeHostnameFromUrl(process.env.NEXT_PUBLIC_APP_URL) : null;
+    if (appUrlHost) allowed.add(normalizeHostname(appUrlHost));
+
+    // Vercel fournit parfois VERCEL_URL (sans protocole)
+    if (process.env.VERCEL_URL) {
+      const vercelHost = safeHostnameFromUrl(`https://${process.env.VERCEL_URL}`);
+      if (vercelHost) allowed.add(normalizeHostname(vercelHost));
+    }
+
+    return allowed.has(originHostname);
   } catch {
     return false;
   }
@@ -60,10 +108,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Protection CSRF - vérifier l'origine
-    const origin = request.headers.get('origin');
-    const host = request.headers.get('host');
+    const origin = request.headers.get('origin') ?? request.headers.get('referer');
+    const host = request.headers.get('host') ?? request.headers.get('x-forwarded-host');
 
-    if (!isValidOrigin(origin, host)) {
+    if (!isValidOrigin(request)) {
       logger.warn(`Invalid origin: ${origin} for host: ${host}`);
       return NextResponse.json(
         { error: 'Invalid origin' },

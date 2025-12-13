@@ -33,8 +33,17 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [mintSuccess, setMintSuccess] = useState(false);
 
-  const networkLabel = process.env.NEXT_PUBLIC_SOLANA_CLUSTER_LABEL ?? "MAINNET";
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "";
+  const derivedClusterLabel = rpcUrl.includes("devnet")
+    ? "DEVNET"
+    : rpcUrl.includes("testnet")
+      ? "TESTNET"
+      : (rpcUrl.includes("mainnet") || rpcUrl.includes("mainnet-beta"))
+        ? "MAINNET"
+        : null;
+
+  // Affichage: si le RPC indique clairement le cluster, on l'affiche (évite le badge DEVNET alors qu'on est sur mainnet).
+  const networkLabel = derivedClusterLabel ?? (process.env.NEXT_PUBLIC_SOLANA_CLUSTER_LABEL ?? "MAINNET");
   const collectionMint = process.env.NEXT_PUBLIC_COLLECTION_MINT ?? "";
   const explorerBase = "https://explorer.solana.com/address";
   const explorerClusterParam = rpcUrl.includes("devnet")
