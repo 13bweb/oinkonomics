@@ -37,5 +37,3 @@ main().catch((e) => {
   console.error("inspect-candy-machine failed:", e);
   process.exit(1);
 });
-
-

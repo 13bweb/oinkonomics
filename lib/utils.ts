@@ -417,8 +417,23 @@ export async function getTotalWalletValue(walletAddress: string): Promise<{ tota
       tokensValueUSD
     };
   } catch (error) {
-    logger.error('Erreur lors du calcul de la valeur totale:', error);
-    throw new Error('Impossible de calculer la valeur totale du wallet');
+    // IMPORTANT: en prod, on ne doit pas casser tout le workflow si une partie "tokens" ou une requête RPC échoue.
+    // Fallback: SOL-only (tier basé sur SOL * prix SOL), tokensValueUSD=0.
+    logger.warn('Erreur lors du calcul de la valeur totale (fallback SOL-only):', error);
+    try {
+      const solBalance = await getWalletBalance(walletAddress);
+      const solPriceUSD = await fetchSOLPriceUSD();
+      const solValueUSD = solBalance * solPriceUSD;
+      return {
+        totalUSD: solValueUSD,
+        solBalance,
+        solValueUSD,
+        tokensValueUSD: 0
+      };
+    } catch (fallbackError) {
+      logger.error('Erreur fallback SOL-only:', fallbackError);
+      throw new Error('Impossible de calculer la valeur du wallet');
+    }
   }
 }
 
