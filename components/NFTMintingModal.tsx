@@ -324,9 +324,13 @@ export default function NFTMintingModal({
             ) : (
               <div className="w-full h-full flex items-center justify-center text-center px-6">
                 <div>
-                  <div className="font-pangolin font-bold text-black">Loading…</div>
+                  <div className="font-pangolin font-bold text-black">
+                    {(loadingCollectionPreview || loadingMintedPreview) ? "Loading…" : "Preview unavailable"}
+                  </div>
                   <div className="text-sm text-gray-700">
-                    Chargement de l’image on-chain (collection / NFT minté).
+                    {(loadingCollectionPreview || loadingMintedPreview)
+                      ? "Chargement de l’image on-chain (collection / NFT minté)."
+                      : "Impossible de charger l’image (réseau/timeout). Tu peux quand même minter."}
                   </div>
                   {(loadingCollectionPreview || loadingMintedPreview) && (
                     <div className="mt-2 text-xs text-gray-600">

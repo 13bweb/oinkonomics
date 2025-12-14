@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
-import { mplTokenMetadata, fetchMetadata, findMetadataPda } from "@metaplex-foundation/mpl-token-metadata";
+import { mplTokenMetadata, findMetadataPda, safeFetchMetadata } from "@metaplex-foundation/mpl-token-metadata";
 import { publicKey } from "@metaplex-foundation/umi";
 
 export const runtime = "nodejs";
@@ -59,7 +59,10 @@ export async function POST(req: NextRequest) {
 
     const mintPk = publicKey(mintAddress);
     const metadataPda = findMetadataPda(umi, { mint: mintPk });
-    const md = await fetchMetadata(umi, metadataPda);
+    const md = await safeFetchMetadata(umi, metadataPda);
+    if (!md) {
+      return NextResponse.json<Err>({ ok: false, error: "Metadata not found for mint" }, { status: 404 });
+    }
 
     // `fetchMetadata` returns an Account-like object where fields are exposed directly (uri/name/symbol).
     const uri = normalizeAssetUrl(((md as any)?.uri ?? "").toString().trim());
@@ -68,12 +71,17 @@ export async function POST(req: NextRequest) {
 
     let imageUrl: string | undefined = undefined;
     if (uri) {
-      const metaRes = await fetchJsonWithTimeout(uri, 7000);
-      if (metaRes.ok) {
-        const j = (await metaRes.json().catch(() => null)) as any;
-        const candidate = (j?.image ?? j?.image_url ?? j?.properties?.image ?? "").toString();
-        const normalized = normalizeAssetUrl(candidate);
-        if (normalized) imageUrl = normalized;
+      // Best-effort: ne jamais 500 juste parce que l'URI est lent/indisponible.
+      try {
+        const metaRes = await fetchJsonWithTimeout(uri, 7000);
+        if (metaRes.ok) {
+          const j = (await metaRes.json().catch(() => null)) as any;
+          const candidate = (j?.image ?? j?.image_url ?? j?.properties?.image ?? "").toString();
+          const normalized = normalizeAssetUrl(candidate);
+          if (normalized) imageUrl = normalized;
+        }
+      } catch {
+        // ignore
       }
     }
 
